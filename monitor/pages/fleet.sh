@@ -99,8 +99,13 @@ while true; do
         2) kill_fleet; pause ;;
         3) 
             clear_screen
-            echo -e "${C_CYAN}--- Últimos Logs da Frota ---${C_RESET}"
-            tail -n 20 "$LOGS_DIR"/fleet_*.log 2>/dev/null || echo "Sem logs ainda."
+            echo -e "${C_CYAN}--- Últimos Logs da Frota (Mais recentes no topo) ---${C_RESET}"
+            for logfile in "$LOGS_DIR"/fleet_*.log; do
+                if [ -f "$logfile" ]; then
+                    echo -e "\n${C_YELLOW}==> $(basename "$logfile") <==${C_RESET}"
+                    tail -n 20 "$logfile" | tac
+                fi
+            done
             pause
             ;;
         0) break ;;
