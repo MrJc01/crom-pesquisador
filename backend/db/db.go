@@ -149,6 +149,7 @@ func OpenGlobalIndex() (*sql.DB, error) {
 		id TEXT PRIMARY KEY,
 		domain TEXT NOT NULL,
 		url TEXT UNIQUE NOT NULL,
+		type TEXT DEFAULT 'page',
 		title TEXT,
 		description TEXT,
 		keywords TEXT,
@@ -197,6 +198,7 @@ func OpenGlobalIndex() (*sql.DB, error) {
 	// Attempt to add published_date and embedding if table already exists (safe migrations)
 	conn.Exec("ALTER TABLE search_index ADD COLUMN published_date TEXT;")
 	conn.Exec("ALTER TABLE search_index ADD COLUMN embedding BLOB;")
+	conn.Exec("ALTER TABLE search_index ADD COLUMN type TEXT DEFAULT 'page';")
 
 	_, err = conn.Exec(schema)
 	if err != nil {

@@ -164,7 +164,7 @@ func processSite(startURL string, config *TargetConfig) {
 		visited[cleanURL] = true
 		fmt.Printf("[🤖 %s] Crawling %d/%d: %s\n", baseDomain, count+1, config.LimitPerSite, cleanURL)
 		
-		node, links := processPage(cleanURL, baseDomain, baseURLObj, config)
+		node, links := processPage(cleanURL, baseDomain, baseURLObj, config, siteDB)
 		if node != nil {
 			err = siteDB.SaveNode(node)
 			if err != nil {
@@ -276,7 +276,7 @@ func processRSS(rssURL string, domain string, config *TargetConfig, siteDB *db.D
 	fmt.Printf("✅ [📰 RSS] Processou %d notícias urgentes de %s\n", count, domain)
 }
 
-func processPage(urlStr string, domain string, baseURLObj *url.URL, config *TargetConfig) (*db.LinkDetail, []string) {
+func processPage(urlStr string, domain string, baseURLObj *url.URL, config *TargetConfig, siteDB *db.DB) (*db.LinkDetail, []string) {
 	start := time.Now()
 	
 	req, _ := http.NewRequest("GET", urlStr, nil)
@@ -351,6 +351,8 @@ func processPage(urlStr string, domain string, baseURLObj *url.URL, config *Targ
 	})
 
 	var links []string
+	
+	// Process Links
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
 		href, exists := s.Attr("href")
 		if !exists {
@@ -372,7 +374,130 @@ func processPage(urlStr string, domain string, baseURLObj *url.URL, config *Targ
 		}
 	})
 
+	// Process Images (Type: image)
+	doc.Find("img").Each(func(i int, s *goquery.Selection) {
+		src, exists := s.Attr("src")
+		if !exists || src == "" {
+			return
+		}
+		alt, _ := s.Attr("alt")
+		if alt == "" {
+			alt = node.Meta.Title // Fallback to page title
+		}
+
+		parsedSrc, err := url.Parse(src)
+		if err != nil {
+			return
+		}
+		absSrc := baseURLObj.ResolveReference(parsedSrc).String()
+
+		imgNode := &db.LinkDetail{
+			URL:  absSrc + "#img" + fmt.Sprintf("%d", i), // Unique URL
+			Type: "image",
+			Meta: db.LinkMeta{
+				Title:       alt,
+				Description: absSrc, // Store real source in description for index
+				Keywords:    node.Meta.Keywords,
+			},
+			Technical: node.Technical,
+			Analytics: db.LinkAnalytics{
+				SearchAppearances: 0,
+				LastCrawled:       time.Now().Format(time.RFC3339),
+				FirstSeen:         time.Now().Format(time.RFC3339),
+				CromRank:          20,
+				CategoryTags:      []string{config.Category},
+			},
+		}
+		
+		// Save Image Node
+		siteDB.SaveNode(imgNode)
+	})
+
+	// Process Videos (Type: video)
+	doc.Find("video, iframe").Each(func(i int, s *goquery.Selection) {
+		src, exists := s.Attr("src")
+		if !exists {
+			return
+		}
+		
+		// Very basic check for video sources
+		if s.Is("iframe") && !strings.Contains(src, "youtube") && !strings.Contains(src, "vimeo") {
+			return 
+		}
+
+		parsedSrc, err := url.Parse(src)
+		if err != nil {
+			return
+		}
+		absSrc := baseURLObj.ResolveReference(parsedSrc).String()
+
+		vidNode := &db.LinkDetail{
+			URL:  absSrc + "#vid" + fmt.Sprintf("%d", i),
+			Type: "video",
+			Meta: db.LinkMeta{
+				Title:       node.Meta.Title + " Video",
+				Description: absSrc,
+				Keywords:    node.Meta.Keywords,
+			},
+			Technical: node.Technical,
+			Analytics: db.LinkAnalytics{
+				SearchAppearances: 0,
+				LastCrawled:       time.Now().Format(time.RFC3339),
+				FirstSeen:         time.Now().Format(time.RFC3339),
+				CromRank:          30,
+				CategoryTags:      []string{config.Category},
+			},
+		}
+		// Save Video Node
+		siteDB.SaveNode(vidNode)
+	})
+
+	// Process Code (Type: code)
+	doc.Find("pre code").Each(func(i int, s *goquery.Selection) {
+		codeContent := s.Text()
+		if len(codeContent) < 50 {
+			return // Ignore small inline code snippets
+		}
+		
+		// Try to extract language from class
+		class, _ := s.Attr("class")
+		lang := "text"
+		if strings.Contains(class, "language-") {
+			parts := strings.Split(class, "language-")
+			if len(parts) > 1 {
+				lang = strings.Fields(parts[1])[0]
+			}
+		}
+
+		codeNode := &db.LinkDetail{
+			URL:  urlStr + "#code" + fmt.Sprintf("%d", i),
+			Type: "code",
+			Meta: db.LinkMeta{
+				Title:       fmt.Sprintf("Code Snippet (%s) in %s", lang, node.Meta.Title),
+				Description: codeContent[:min(len(codeContent), 300)], // Snippet preview
+				Keywords:    node.Meta.Keywords,
+			},
+			Technical: node.Technical,
+			Analytics: db.LinkAnalytics{
+				SearchAppearances: 0,
+				LastCrawled:       time.Now().Format(time.RFC3339),
+				FirstSeen:         time.Now().Format(time.RFC3339),
+				CromRank:          40,
+				CategoryTags:      []string{config.Category},
+			},
+		}
+		// Save Code Node
+		siteDB.SaveNode(codeNode)
+	})
+
 	return node, links
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func extractDomain(rawURL string) string {

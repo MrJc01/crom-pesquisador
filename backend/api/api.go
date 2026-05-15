@@ -150,13 +150,13 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	ftsQuery := query + "*"
 	
 	rows, err := globalDB.Query(`
-		SELECT search_index.id, search_index.domain, search_index.url, search_index.title, search_index.description, search_index.published_date 
+		SELECT search_index.id, search_index.domain, search_index.url, search_index.type, search_index.title, search_index.description, search_index.published_date 
 		FROM search_index 
 		JOIN search_fts ON search_index.rowid = search_fts.rowid
 		WHERE search_fts MATCH ? 
 		  AND search_index.domain NOT IN (SELECT domain FROM banned_domains)
 		ORDER BY search_fts.rank ASC
-		LIMIT 50
+		LIMIT 100
 	`, ftsQuery)
 	
 	if err != nil {
@@ -165,45 +165,75 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	// Ensure it is an empty array, not null, to prevent React crashes
+	// Ensure arrays are not null
 	results := make([]map[string]interface{}, 0)
 	newsResults := make([]map[string]interface{}, 0)
+	images := make([]map[string]interface{}, 0)
+	videos := make([]map[string]interface{}, 0)
+	code := make([]map[string]interface{}, 0)
 
 	for rows.Next() {
-		var id, domain, url, title, description string
+		var id, domain, url, nodeType, title, description string
 		var pubDate sql.NullString
-		if err := rows.Scan(&id, &domain, &url, &title, &description, &pubDate); err != nil {
+		if err := rows.Scan(&id, &domain, &url, &nodeType, &title, &description, &pubDate); err != nil {
 			continue
 		}
 		
 		apiID := domain + "|" + id
 		
-		item := map[string]interface{}{
-			"id": apiID,
-			"url": url,
-			"title": title,
-			"snippet": description,
-			"site": domain,
-			"breadcrumb": domain + " › " + title,
-		}
-
-		if pubDate.Valid && pubDate.String != "" {
-			item["time"] = pubDate.String // Send date to frontend
-			newsResults = append(newsResults, item)
+		if nodeType == "image" {
+			images = append(images, map[string]interface{}{
+				"id": apiID,
+				"src": description, // We stored actual img src in description
+				"alt": title,
+				"site": domain,
+			})
+		} else if nodeType == "video" {
+			videos = append(videos, map[string]interface{}{
+				"id": apiID,
+				"title": title,
+				"thumb": description, // We stored src or thumb here
+				"channel": domain,
+				"views": "N/A",
+				"duration": "0:00",
+			})
+		} else if nodeType == "code" {
+			code = append(code, map[string]interface{}{
+				"id": apiID,
+				"title": title,
+				"language": "txt", // Can extract from title later
+				"content": description,
+				"site": domain,
+			})
 		} else {
-			results = append(results, item)
+			// Page
+			item := map[string]interface{}{
+				"id": apiID,
+				"url": url,
+				"title": title,
+				"snippet": description,
+				"site": domain,
+				"breadcrumb": domain + " › " + title,
+			}
+
+			if pubDate.Valid && pubDate.String != "" {
+				item["time"] = pubDate.String // Send date to frontend
+				newsResults = append(newsResults, item)
+			} else {
+				results = append(results, item)
+			}
 		}
 	}
 
 	response := map[string]interface{}{
 		"query":   query,
-		"total":   len(results),
-		"time":    0.02, // simulated fast response time
+		"total":   len(results) + len(newsResults) + len(images) + len(videos) + len(code),
+		"time":    0.02,
 		"results": results,
-		"images":  []interface{}{}, 
-		"videos":  []interface{}{},
-		"news":    newsResults, // Notícias extraídas do RSS com Time Decay
-		"code":    []interface{}{},
+		"images":  images, 
+		"videos":  videos,
+		"news":    newsResults,
+		"code":    code,
 		"related": []interface{}{},
 		"hasMore": false,
 		"page":    1,

@@ -6,7 +6,9 @@ import { HistoryPage } from './pages/HistoryPage';
 import { LinkDetailPage } from './pages/LinkDetailPage';
 import { NetworkPage } from './pages/NetworkPage';
 import { AdminPage } from './pages/AdminPage';
+import { TransparencyPage } from './pages/TransparencyPage';
 import { useTheme } from './hooks/useTheme';
+import { Navigate } from 'react-router-dom';
 
 function AppInner() {
   // Initialize theme on app start
@@ -21,6 +23,8 @@ function AppInner() {
       <Route path="/network" element={<NetworkPage />} />
       <Route path="/link/:id" element={<LinkDetailPage />} />
       <Route path="/admin" element={<AdminPage />} />
+      <Route path="/transparency" element={<TransparencyPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
