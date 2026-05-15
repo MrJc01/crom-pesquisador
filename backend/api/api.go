@@ -146,8 +146,15 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	defer globalDB.Close()
 
 	// Query FTS table
-	// We append * for prefix matching
 	ftsQuery := query + "*"
+	
+	pageStr := r.URL.Query().Get("page")
+	pageNum := 1
+	if pageStr != "" {
+		fmt.Sscanf(pageStr, "%d", &pageNum)
+	}
+	limit := 15
+	offset := (pageNum - 1) * limit
 	
 	rows, err := globalDB.Query(`
 		SELECT search_index.id, search_index.domain, search_index.url, search_index.type, search_index.title, search_index.description, search_index.published_date 
@@ -156,8 +163,8 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		WHERE search_fts MATCH ? 
 		  AND search_index.domain NOT IN (SELECT domain FROM banned_domains)
 		ORDER BY search_fts.rank ASC
-		LIMIT 100
-	`, ftsQuery)
+		LIMIT ? OFFSET ?
+	`, ftsQuery, limit, offset)
 	
 	if err != nil {
 		http.Error(w, "Search failed", http.StatusInternalServerError)
@@ -235,8 +242,8 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		"news":    newsResults,
 		"code":    code,
 		"related": []interface{}{},
-		"hasMore": false,
-		"page":    1,
+		"hasMore": len(results)+len(newsResults)+len(images)+len(videos)+len(code) == limit, // simple heuristic
+		"page":    pageNum,
 	}
 
 	// Save to cache (5 minutes TTL)

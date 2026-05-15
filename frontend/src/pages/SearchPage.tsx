@@ -33,6 +33,7 @@ export function SearchPage() {
   const [page, setPage] = useState(1);
   const [swiperInstance, setSwiperInstance] = useState<any>(null);
   const prevResultsLengthRef = useRef(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const addHistory = useHistoryStore(s => s.addEntry);
   const historyEnabled = useSettingsStore(s => s.historyEnabled);
   const openInNewTab = useSettingsStore(s => s.openInNewTab);
@@ -92,6 +93,13 @@ export function SearchPage() {
     }
   }, [data?.results.length, swiperInstance, tab]);
 
+  // Reset scroll when changing tabs
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [tab]);
+
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-surface-950 text-slate-900 dark:text-slate-100">
       {/* Header - Topo (Simplificado) */}
@@ -111,12 +119,12 @@ export function SearchPage() {
       </header>
 
       {/* Body */}
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-h-0">
         <ChatPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />
 
         <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-50 dark:bg-surface-900">
           {/* Swiper Container taking full height */}
-          <div className="absolute inset-0 w-full h-full flex flex-col pt-12 pb-24">
+          <div className="absolute inset-0 w-full h-full flex flex-col pt-12 pb-4">
             {loading && !data && (
               <div className="flex flex-col items-center justify-center h-full text-brand-500">
                 <Loader2 className="w-8 h-8 animate-spin mb-4" />
@@ -133,7 +141,7 @@ export function SearchPage() {
                 mousewheel={true}
                 keyboard={{ enabled: true }}
                 modules={[Mousewheel, Keyboard]}
-                className="w-full h-full px-4"
+                className="w-full h-full px-4 [&>.swiper-wrapper]:mt-auto"
                 onSwiper={setSwiperInstance}
                 onReachBeginning={() => {
                   // We hit the TOP (which means we need to load MORE, because array is reversed)
@@ -182,8 +190,8 @@ export function SearchPage() {
 
             {/* Outras Abas (Fallback para scroll normal temporariamente) */}
             {!loading && tab !== 'all' && data && (
-              <div className="w-full h-full overflow-y-auto p-4 md:p-6 flex justify-center">
-                <div className="w-full max-w-[700px] pb-32">
+              <div ref={scrollContainerRef} className="w-full h-full overflow-y-auto p-4 md:p-6 flex justify-center">
+                <div className="w-full max-w-[700px] pb-8">
                   {/* Tab: Imagens */}
                   {tab === 'images' && (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
