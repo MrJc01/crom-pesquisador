@@ -30,7 +30,16 @@ cd backend
 go build -o crom_api main.go
 cd ..
 
-# 4. Reiniciar Serviços
+# 4. Sincronização de Bancos Isolados (Correção SRE)
+echo "📂 Verificando e unificando bancos de dados isolados..."
+if [ -d "$PWD/crawler/data" ]; then
+    mkdir -p "$PWD/data"
+    cp -r "$PWD/crawler/data/"* "$PWD/data/" 2>/dev/null || true
+    rm -rf "$PWD/crawler/data"
+    echo " -> Bancos movidos com sucesso para a raiz."
+fi
+
+# 5. Reiniciar Serviços
 echo "🚀 Reiniciando Serviços..."
 
 # Mata a API antiga se estiver rodando via processo normal
