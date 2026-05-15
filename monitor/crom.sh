@@ -29,7 +29,7 @@ while true; do
         echo -e " Frontend React    : ${C_RED}OFFLINE${C_RESET} (Build não encontrado)"
     fi
     
-    crawlers_count=$(ps aux | grep "crawler/main.go" | grep -v grep | wc -l)
+    crawlers_count=$(ps aux | grep "main.go --config" | grep -v grep | wc -l)
     if [ "$crawlers_count" -gt 0 ]; then
         echo -e " Crawlers Ativos   : ${C_YELLOW}${crawlers_count} em execução${C_RESET}"
     else
