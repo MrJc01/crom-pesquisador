@@ -5,6 +5,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { LinkDetailPage } from './pages/LinkDetailPage';
 import { NetworkPage } from './pages/NetworkPage';
+import { AdminPage } from './pages/AdminPage';
 import { useTheme } from './hooks/useTheme';
 
 function AppInner() {
@@ -19,6 +20,7 @@ function AppInner() {
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/network" element={<NetworkPage />} />
       <Route path="/link/:id" element={<LinkDetailPage />} />
+      <Route path="/admin" element={<AdminPage />} />
     </Routes>
   );
 }

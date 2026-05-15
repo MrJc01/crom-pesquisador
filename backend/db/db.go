@@ -152,7 +152,8 @@ func OpenGlobalIndex() (*sql.DB, error) {
 		title TEXT,
 		description TEXT,
 		keywords TEXT,
-		published_date TEXT
+		published_date TEXT,
+		embedding BLOB
 	);
 
 	-- FTS virtual table for fast full-text search
@@ -193,8 +194,9 @@ func OpenGlobalIndex() (*sql.DB, error) {
 		reported_at TEXT
 	);
 	`
-	// Attempt to add published_date if table already exists (safe migration)
+	// Attempt to add published_date and embedding if table already exists (safe migrations)
 	conn.Exec("ALTER TABLE search_index ADD COLUMN published_date TEXT;")
+	conn.Exec("ALTER TABLE search_index ADD COLUMN embedding BLOB;")
 
 	_, err = conn.Exec(schema)
 	if err != nil {

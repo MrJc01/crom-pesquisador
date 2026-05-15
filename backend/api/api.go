@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -70,9 +71,31 @@ func SetupRouter() *chi.Mux {
 		})
 
 		r.Get("/crawlers", handleGetCrawlers)
+
+		r.Route("/admin", func(r chi.Router) {
+			r.Use(adminAuth)
+			r.Get("/stats", handleAdminStats)
+			r.Get("/suggestions", handleAdminSuggestions)
+			r.Post("/action", handleAdminAction)
+		})
 	})
 
 	return r
+}
+
+func adminAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := r.Header.Get("Authorization")
+		expected := os.Getenv("ADMIN_SECRET")
+		if expected == "" {
+			expected = "crom-admin-123" // Fallback for dev
+		}
+		if token != "Bearer "+expected {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func jsonResponse(w http.ResponseWriter, status int, data interface{}) {
@@ -387,6 +410,95 @@ func handleReportLink(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonResponse(w, http.StatusOK, map[string]string{"message": "Report submitted successfully"})
+}
+
+// ----------------------------------------------------------------------------
+// Admin Handlers
+// ----------------------------------------------------------------------------
+
+func handleAdminStats(w http.ResponseWriter, r *http.Request) {
+	globalDB, err := db.OpenGlobalIndex()
+	if err != nil {
+		http.Error(w, "DB error", http.StatusInternalServerError)
+		return
+	}
+	defer globalDB.Close()
+
+	var totalNodes int
+	globalDB.QueryRow("SELECT COUNT(*) FROM search_index").Scan(&totalNodes)
+
+	var totalSuggestions int
+	globalDB.QueryRow("SELECT COUNT(*) FROM suggested_urls WHERE status = 'pending'").Scan(&totalSuggestions)
+
+	jsonResponse(w, http.StatusOK, map[string]interface{}{
+		"total_nodes": totalNodes,
+		"pending_suggestions": totalSuggestions,
+		"status": "healthy",
+	})
+}
+
+func handleAdminSuggestions(w http.ResponseWriter, r *http.Request) {
+	globalDB, err := db.OpenGlobalIndex()
+	if err != nil {
+		http.Error(w, "DB error", http.StatusInternalServerError)
+		return
+	}
+	defer globalDB.Close()
+
+	rows, err := globalDB.Query("SELECT url, status, suggested_at FROM suggested_urls WHERE status = 'pending' LIMIT 50")
+	if err != nil {
+		http.Error(w, "DB query error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var suggestions []map[string]interface{}
+	for rows.Next() {
+		var url, status, suggestedAt string
+		if err := rows.Scan(&url, &status, &suggestedAt); err != nil {
+			continue
+		}
+		suggestions = append(suggestions, map[string]interface{}{
+			"url": url,
+			"status": status,
+			"suggested_at": suggestedAt,
+		})
+	}
+	
+	if suggestions == nil {
+		suggestions = make([]map[string]interface{}, 0)
+	}
+
+	jsonResponse(w, http.StatusOK, suggestions)
+}
+
+func handleAdminAction(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		URL    string `json:"url"`
+		Action string `json:"action"` // "approve" or "reject"
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid payload", http.StatusBadRequest)
+		return
+	}
+
+	globalDB, err := db.OpenGlobalIndex()
+	if err != nil {
+		http.Error(w, "DB error", http.StatusInternalServerError)
+		return
+	}
+	defer globalDB.Close()
+
+	if req.Action == "approve" || req.Action == "reject" {
+		_, err := globalDB.Exec("UPDATE suggested_urls SET status = ? WHERE url = ?", req.Action, req.URL)
+		if err != nil {
+			http.Error(w, "DB update error", http.StatusInternalServerError)
+			return
+		}
+		// If approved, in the future this would append to crom.json or alert the crawler.
+	}
+
+	jsonResponse(w, http.StatusOK, map[string]string{"message": "Action applied"})
 }
 
 // ExtractDomain helper
