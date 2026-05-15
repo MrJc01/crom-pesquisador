@@ -86,13 +86,13 @@ while true; do
     read opcao
 
     case $opcao in
-        1) deploy_fleet; wait_keypress ;;
-        2) kill_fleet; wait_keypress ;;
+        1) deploy_fleet; pause ;;
+        2) kill_fleet; pause ;;
         3) 
             clear_screen
             echo -e "${C_CYAN}--- Últimos Logs da Frota ---${C_RESET}"
             tail -n 20 "$LOGS_DIR"/fleet_*.log 2>/dev/null || echo "Sem logs ainda."
-            wait_keypress
+            pause
             ;;
         0) break ;;
         *) print_error "Inválido!"; sleep 1 ;;

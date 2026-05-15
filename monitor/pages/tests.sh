@@ -33,4 +33,4 @@ else
 fi
 
 echo ""
-wait_keypress
+pause
