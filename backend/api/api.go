@@ -305,9 +305,9 @@ func handleReportLink(w http.ResponseWriter, r *http.Request) {
 
 // ExtractDomain helper
 func ExtractDomain(rawURL string) string {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return "unknown"
-	}
-	return strings.TrimPrefix(u.Hostname(), "www.")
+	rawURL = strings.TrimPrefix(rawURL, "http://")
+	rawURL = strings.TrimPrefix(rawURL, "https://")
+	parts := strings.Split(rawURL, "/")
+	domain := parts[0]
+	return strings.TrimPrefix(domain, "www.")
 }
