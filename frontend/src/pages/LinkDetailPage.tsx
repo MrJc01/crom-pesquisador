@@ -80,7 +80,7 @@ export function LinkDetailPage() {
     { id: 'meta' as const, label: 'Metadados', icon: FileText },
     { id: 'tech' as const, label: 'Técnico', icon: Server },
     { id: 'analytics' as const, label: 'Analytics', icon: BarChart3 },
-    { id: 'comments' as const, label: `Comentários (${data.comments.length})`, icon: MessageCircle },
+    { id: 'comments' as const, label: `Comentários (${data.comments?.length || 0})`, icon: MessageCircle },
   ];
 
   return (
@@ -118,7 +118,7 @@ export function LinkDetailPage() {
         <div className="mb-6 animate-fade-in">
           <h1 className="text-2xl font-bold mb-2">{data.meta.title}</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{data.meta.description}</p>
-          {data.meta.keywords.length > 0 && (
+          {(data.meta.keywords?.length || 0) > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">
               {data.meta.keywords.map(k => (
                 <span key={k} className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-surface-850 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700/50">{k}</span>
@@ -143,7 +143,7 @@ export function LinkDetailPage() {
           </div>
           <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-surface-900 border border-slate-100 dark:border-slate-800/40">
             <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-500/10"><MessageCircle className="w-4 h-4 text-purple-500" /></div>
-            <div><p className="text-lg font-bold">{data.comments.length}</p><p className="text-[10px] text-slate-400">Comentários</p></div>
+            <div><p className="text-lg font-bold">{data.comments?.length || 0}</p><p className="text-[10px] text-slate-400">Comentários</p></div>
           </div>
         </div>
 
@@ -196,7 +196,7 @@ export function LinkDetailPage() {
             <div>
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2"><Tag className="w-4 h-4 text-brand-500" /> Categorias</p>
               <div className="flex flex-wrap gap-2">
-                {data.analytics.categoryTags.map(t => (
+                {data.analytics.categoryTags?.map(t => (
                   <span key={t} className="px-3 py-1 rounded-full text-xs font-medium bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-500/20">{t}</span>
                 ))}
               </div>
@@ -240,7 +240,7 @@ export function LinkDetailPage() {
             </div>
 
             {/* Comments List */}
-            {data.comments.map((c: LinkComment) => (
+            {data.comments?.map((c: LinkComment) => (
               <div key={c.id} className="flex gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-surface-850/50 transition-all">
                 <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 text-[10px] font-mono text-slate-500 dark:text-slate-400">
                   {c.ipHash.slice(0, 2)}
@@ -266,7 +266,7 @@ export function LinkDetailPage() {
         )}
 
         {/* Related Links */}
-        {data.related.length > 0 && (
+        {(data.related?.length || 0) > 0 && (
           <div className="mt-10 pt-6 border-t border-slate-100 dark:border-slate-800/40 animate-fade-in">
             <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Links Relacionados</h2>
             <div className="space-y-2">
