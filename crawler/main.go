@@ -68,22 +68,27 @@ func main() {
 		log.Fatalf("Failed to parse config file: %v", err)
 	}
 
-	fmt.Printf("🚀 Lançando Batch de Crawlers para o Nicho: %s (%d alvos base)\n", target.Name, len(target.URLs))
+	for {
+		fmt.Printf("🚀 Lançando Batch de Crawlers para o Nicho: %s (%d alvos base)\n", target.Name, len(target.URLs))
 
-	var wg sync.WaitGroup
+		var wg sync.WaitGroup
 
-	// Dispatch a worker for each URL seed in the JSON array
-	for _, seedURL := range target.URLs {
-		wg.Add(1)
-		go func(urlStr string) {
-			defer wg.Done()
-			processSite(urlStr, &target)
-		}(seedURL)
+		// Dispatch a worker for each URL seed in the JSON array
+		for _, seedURL := range target.URLs {
+			wg.Add(1)
+			go func(urlStr string) {
+				defer wg.Done()
+				processSite(urlStr, &target)
+			}(seedURL)
+		}
+
+		// Wait for all workers in the pool to complete
+		wg.Wait()
+		fmt.Printf("✅ Todos os %d sites do nicho '%s' foram varridos!\n", len(target.URLs), target.Name)
+		
+		fmt.Println("💤 Crawler entrando em repouso por 15 minutos antes da próxima varredura...")
+		time.Sleep(15 * time.Minute)
 	}
-
-	// Wait for all workers in the pool to complete
-	wg.Wait()
-	fmt.Printf("✅ Todos os %d sites do nicho '%s' foram varridos!\n", len(target.URLs), target.Name)
 }
 
 // processSite acts as an individual Spider worker for a specific domain
