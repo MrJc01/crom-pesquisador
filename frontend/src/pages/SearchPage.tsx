@@ -144,14 +144,14 @@ export function SearchPage() {
               >
                 {/* Loading More Slide at the TOP */}
                 {data.hasMore && (
-                  <SwiperSlide className="w-full h-auto flex flex-col items-center justify-center py-6">
+                  <SwiperSlide className="w-full !h-auto flex flex-col items-center justify-center py-6">
                     <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
                   </SwiperSlide>
                 )}
                 
                 {/* End of results / Related Searches Slide at the TOP */}
                 {!data.hasMore && data.related.length > 0 && (
-                  <SwiperSlide className="w-full h-auto flex flex-col items-center justify-center py-12">
+                  <SwiperSlide className="w-full !h-auto flex flex-col items-center justify-center py-12">
                     <div className="w-full max-w-[700px] text-center mx-auto">
                       <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-6">Fim dos resultados</h2>
                       <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4">Pesquisas relacionadas</h3>
@@ -170,7 +170,7 @@ export function SearchPage() {
                 {[...data.results].reverse().map((r, reversedIndex) => {
                   const originalIndex = data.results.length - 1 - reversedIndex;
                   return (
-                    <SwiperSlide key={r.id} className="w-full h-auto flex justify-center">
+                    <SwiperSlide key={r.id} className="w-full !h-auto flex justify-center">
                       <div className="w-full max-w-[700px] animate-fade-in">
                         <ResultCard result={r} index={originalIndex} openInNewTab={openInNewTab} />
                       </div>
