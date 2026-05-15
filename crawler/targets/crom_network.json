@@ -1,0 +1,17 @@
+{
+  "name": "CROM Sovereign Network",
+  "urls": [
+    "https://crom.me",
+    "https://crom.run",
+    "https://p.crom.run",
+    "https://search.crom.run",
+    "https://crom.chat",
+    "https://cromia.run",
+    "https://tabnews.com.br"
+  ],
+  "limit_per_site": 500,
+  "delay_ms": 300,
+  "default_tags": ["Sovereign", "CROM", "Network", "Web3"],
+  "language": "pt-BR",
+  "category": "Technology"
+}
