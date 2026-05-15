@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Search, Image, Video, Newspaper, Code, MessageCircle, Settings, Loader2 } from 'lucide-react';
 import { SearchBar } from '../components/SearchBar';
@@ -31,6 +31,8 @@ export function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
+  const [swiperInstance, setSwiperInstance] = useState<any>(null);
+  const prevResultsLengthRef = useRef(0);
   const addHistory = useHistoryStore(s => s.addEntry);
   const historyEnabled = useSettingsStore(s => s.historyEnabled);
   const openInNewTab = useSettingsStore(s => s.openInNewTab);
@@ -40,6 +42,7 @@ export function SearchPage() {
     if (!query) return;
     setPage(1);
     setLoading(true);
+    prevResultsLengthRef.current = 0; // Reset length on new search
     searchAPI(query, 1).then(res => {
       setData(res);
       setLoading(false);
@@ -66,6 +69,29 @@ export function SearchPage() {
     });
   }, [data, loadingMore, query, page]);
 
+  // Adjust Swiper scroll position when new items are added to the TOP (prepended)
+  useEffect(() => {
+    if (swiperInstance && data && tab === 'all') {
+      const currentLength = data.results.length;
+      if (currentLength > prevResultsLengthRef.current) {
+        const diff = currentLength - prevResultsLengthRef.current;
+        if (prevResultsLengthRef.current > 0) {
+          // Loaded more items (prepended to DOM). Adjust index to prevent visual jump
+          const newIndex = swiperInstance.activeIndex + diff;
+          swiperInstance.slideTo(newIndex, 0, false);
+        } else {
+          // First load: Start at the BOTTOM (most relevant result)
+          setTimeout(() => {
+            if (swiperInstance && !swiperInstance.destroyed) {
+              swiperInstance.slideTo(currentLength - 1, 0, false);
+            }
+          }, 50);
+        }
+        prevResultsLengthRef.current = currentLength;
+      }
+    }
+  }, [data?.results.length, swiperInstance, tab]);
+
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-surface-950 text-slate-900 dark:text-slate-100">
       {/* Header - Topo (Simplificado) */}
@@ -90,53 +116,43 @@ export function SearchPage() {
 
         <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-50 dark:bg-surface-900">
           {/* Swiper Container taking full height */}
-          <div className="absolute inset-0 w-full h-full">
+          <div className="absolute inset-0 w-full h-full flex flex-col pt-12 pb-24">
             {loading && !data && (
               <div className="flex flex-col items-center justify-center h-full text-brand-500">
                 <Loader2 className="w-8 h-8 animate-spin mb-4" />
                 <span className="text-sm font-medium">Buscando na rede soberana...</span>
               </div>
             )}
-              {data && !loading && (
-                <p className="text-xs text-slate-400 dark:text-slate-500 px-1 py-2 border-t border-slate-100 dark:border-slate-800/40 mt-2">
-                  Aproximadamente <strong className="text-slate-500 dark:text-slate-400">{data.total.toLocaleString()}</strong> resultados em <strong className="text-slate-500 dark:text-slate-400">{data.time}s</strong>
-                </p>
-              )}
 
-            {/* Tab: Todos (TikTok Style Vertical Swiper) */}
+            {/* Tab: Todos (TikTok Style Vertical Swiper - Adaptive) */}
             {!loading && tab === 'all' && data && data.results.length > 0 && (
               <Swiper
                 direction="vertical"
-                slidesPerView={1}
+                slidesPerView="auto"
+                spaceBetween={24}
                 mousewheel={true}
                 keyboard={{ enabled: true }}
                 modules={[Mousewheel, Keyboard]}
-                className="w-full h-full"
-                onReachEnd={() => {
+                className="w-full h-full px-4"
+                onSwiper={setSwiperInstance}
+                onReachBeginning={() => {
+                  // We hit the TOP (which means we need to load MORE, because array is reversed)
                   if (data.hasMore && !loadingMore) {
                     loadMore();
                   }
                 }}
               >
-                {data.results.map((r, i) => (
-                  <SwiperSlide key={r.id} className="w-full h-full flex flex-col items-center justify-center px-4">
-                    <div className="w-full max-w-[700px] animate-fade-in">
-                      <ResultCard result={r} index={i} openInNewTab={openInNewTab} />
-                    </div>
-                  </SwiperSlide>
-                ))}
-                
-                {/* Loading More Slide */}
+                {/* Loading More Slide at the TOP */}
                 {data.hasMore && (
-                  <SwiperSlide className="w-full h-full flex flex-col items-center justify-center">
+                  <SwiperSlide className="w-full h-auto flex flex-col items-center justify-center py-6">
                     <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
                   </SwiperSlide>
                 )}
                 
-                {/* End of results / Related Searches Slide */}
+                {/* End of results / Related Searches Slide at the TOP */}
                 {!data.hasMore && data.related.length > 0 && (
-                  <SwiperSlide className="w-full h-full flex flex-col items-center justify-center px-4">
-                    <div className="w-full max-w-[700px] text-center">
+                  <SwiperSlide className="w-full h-auto flex flex-col items-center justify-center py-12">
+                    <div className="w-full max-w-[700px] text-center mx-auto">
                       <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-6">Fim dos resultados</h2>
                       <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4">Pesquisas relacionadas</h3>
                       <div className="flex flex-wrap justify-center gap-2">
@@ -149,6 +165,18 @@ export function SearchPage() {
                     </div>
                   </SwiperSlide>
                 )}
+
+                {/* Reversed Results - Most relevant is at the BOTTOM */}
+                {[...data.results].reverse().map((r, reversedIndex) => {
+                  const originalIndex = data.results.length - 1 - reversedIndex;
+                  return (
+                    <SwiperSlide key={r.id} className="w-full h-auto flex justify-center">
+                      <div className="w-full max-w-[700px] animate-fade-in">
+                        <ResultCard result={r} index={originalIndex} openInNewTab={openInNewTab} />
+                      </div>
+                    </SwiperSlide>
+                  );
+                })}
               </Swiper>
             )}
 
