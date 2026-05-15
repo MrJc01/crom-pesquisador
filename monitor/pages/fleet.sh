@@ -26,8 +26,8 @@ list_fleet() {
             limit=$(jq -r '.limit_per_site' "$file" 2>/dev/null)
             filename=$(basename "$file")
             
-            # Check if running (matching 'main.go --config targets/filename')
-            is_running=$(ps aux | grep "main.go --config.*$filename" | grep -v grep | wc -l)
+            # Check if running
+            is_running=$(ps aux | grep "crawler/main.go --config.*$filename" | grep -v grep | wc -l)
             status="${C_GRAY}OFFLINE${C_RESET}"
             if [ "$is_running" -gt 0 ]; then
                 status="${C_GREEN}ONLINE${C_RESET}"
@@ -48,23 +48,32 @@ deploy_fleet() {
     for file in "$TARGETS_DIR"/*.json; do
         if [ -f "$file" ]; then
             filename=$(basename "$file")
-            is_running=$(ps aux | grep "main.go --config.*$filename" | grep -v grep | wc -l)
+            is_running=$(ps aux | grep "crawler/main.go --config.*$filename" | grep -v grep | wc -l)
             
             if [ "$is_running" -eq 0 ]; then
                 echo -e " Lançando CROM-Bot para: ${C_YELLOW}$filename${C_RESET}..."
-                nohup bash -c "cd '$PROJECT_ROOT/crawler' && go run main.go --config 'targets/$filename' >> '$LOGS_DIR/fleet_$filename.log' 2>&1" &>/dev/null &
+                nohup bash -c "cd '$PROJECT_ROOT' && go run crawler/main.go --config 'crawler/targets/$filename' >> '$LOGS_DIR/fleet_$filename.log' 2>&1" &>/dev/null &
                 sleep 0.5
             else
                 echo -e " ${C_GRAY}$filename já está rodando. Ignorado.${C_RESET}"
             fi
         fi
     done
+    
+    # Mover arquivos que foram salvos no diretório errado pela versão anterior
+    if [ -d "$PROJECT_ROOT/crawler/data" ]; then
+        echo -e "${C_YELLOW}Sincronizando bancos de dados isolados para a raiz do projeto...${C_RESET}"
+        mkdir -p "$PROJECT_ROOT/data"
+        cp -r "$PROJECT_ROOT/crawler/data/"* "$PROJECT_ROOT/data/" 2>/dev/null || true
+        rm -rf "$PROJECT_ROOT/crawler/data"
+    fi
+
     print_success "Deploy concluído! Acompanhe via Dashboard."
 }
 
 kill_fleet() {
     echo -e "\n${C_RED}[RECOLHENDO FROTA]${C_RESET}"
-    pids=$(ps aux | grep "main.go --config" | grep -v grep | awk '{print $2}')
+    pids=$(ps aux | grep "crawler/main.go --config" | grep -v grep | awk '{print $2}')
     if [ -n "$pids" ]; then
         echo "$pids" | xargs kill -9
         print_success "Todos os bots da frota foram desligados."
