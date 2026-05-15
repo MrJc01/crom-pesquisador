@@ -161,6 +161,11 @@ func processSite(startURL string, config *TargetConfig) {
 			continue
 		}
 
+		if siteDB.NodeExists(cleanURL) {
+			visited[cleanURL] = true
+			continue
+		}
+
 		visited[cleanURL] = true
 		fmt.Printf("[🤖 %s] Crawling %d/%d: %s\n", baseDomain, count+1, config.LimitPerSite, cleanURL)
 		
@@ -356,6 +361,11 @@ func processPage(urlStr string, domain string, baseURLObj *url.URL, config *Targ
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
 		href, exists := s.Attr("href")
 		if !exists {
+			return
+		}
+		
+		// Anti-Malformed URL filter
+		if strings.Contains(href, "https//") || strings.Contains(href, "http//") || strings.Contains(href, "://://") {
 			return
 		}
 		

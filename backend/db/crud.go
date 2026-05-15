@@ -216,6 +216,13 @@ func (db *DB) GetAllNodes() ([]LinkDetail, error) {
 	return nodes, nil
 }
 
+// NodeExists checks if a URL has already been crawled and saved
+func (db *DB) NodeExists(url string) bool {
+	var exists int
+	err := db.conn.QueryRow(`SELECT 1 FROM meta WHERE url = ?`, url).Scan(&exists)
+	return err == nil && exists == 1
+}
+
 // ----------------------------------------------------------------------------
 // Governance (SRE & Community Moderation)
 // ----------------------------------------------------------------------------
