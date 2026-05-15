@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"flag"
 	"fmt"
 	"log"
@@ -28,6 +29,25 @@ type TargetConfig struct {
 }
 
 var UserAgent = "CROM-Bot/1.0 (+https://crom.me)"
+
+// RSS Structs for native XML parsing
+type RssFeed struct {
+	XMLName xml.Name  `xml:"rss"`
+	Channel RssChannel `xml:"channel"`
+}
+
+type RssChannel struct {
+	Title       string    `xml:"title"`
+	Description string    `xml:"description"`
+	Items       []RssItem `xml:"item"`
+}
+
+type RssItem struct {
+	Title       string `xml:"title"`
+	Link        string `xml:"link"`
+	Description string `xml:"description"`
+	PubDate     string `xml:"pubDate"`
+}
 
 func main() {
 	configPath := flag.String("config", "", "Path to the target JSON configuration file")
@@ -97,8 +117,13 @@ func processSite(startURL string, config *TargetConfig) {
 		fmt.Printf("[ERRO DB] Falha ao abrir db para %s: %v\n", baseDomain, err)
 		return
 	}
-	// We handle close carefully for concurrent writes. The CRUD methods in db use their own DB handle locks natively via SQLite driver.
 	defer siteDB.Close()
+
+	// 🚨 RSS FAST-TRACK: If category is News and it's an RSS feed, we parse XML and bypass BFS
+	if config.Category == "News" || strings.HasSuffix(startURL, ".xml") || strings.Contains(startURL, "rss") || strings.Contains(startURL, "feed") {
+		processRSS(startURL, baseDomain, config, siteDB)
+		return
+	}
 
 	// BFS Queue Setup
 	queue := []string{startURL}
@@ -148,6 +173,97 @@ func processSite(startURL string, config *TargetConfig) {
 		// Respect the delay
 		time.Sleep(time.Duration(config.DelayMs) * time.Millisecond)
 	}
+}
+
+// processRSS downloads the XML, parses it natively, and injects exactly the news into the DB
+func processRSS(rssURL string, domain string, config *TargetConfig, siteDB *db.DB) {
+	fmt.Printf("[📰 RSS] Baixando Feed de Notícias Rápido: %s\n", rssURL)
+	
+	req, _ := http.NewRequest("GET", rssURL, nil)
+	req.Header.Set("User-Agent", UserAgent)
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	
+	if err != nil || resp.StatusCode != 200 {
+		fmt.Printf("[📰 RSS ERRO] Falha ao buscar %s\n", rssURL)
+		if resp != nil {
+			resp.Body.Close()
+		}
+		return
+	}
+	defer resp.Body.Close()
+
+	var feed RssFeed
+	if err := xml.NewDecoder(resp.Body).Decode(&feed); err != nil {
+		fmt.Printf("[📰 RSS ERRO] Falha no Parse XML de %s: %v\n", rssURL, err)
+		return
+	}
+
+	count := 0
+	for _, item := range feed.Channel.Items {
+		if count >= config.LimitPerSite {
+			break
+		}
+		
+		cleanURL := strings.TrimSpace(item.Link)
+		if cleanURL == "" {
+			continue
+		}
+
+		// Cleanup description (some RSS put full HTML in description)
+		desc := item.Description
+		if len(desc) > 300 {
+			desc = desc[:300] + "..."
+		}
+
+		// Convert pubDate to a format SQLite can easily sort if needed, or just store it.
+		// Standard RSS pubDate: "Mon, 02 Jan 2006 15:04:05 -0700"
+		// We'll parse it and reformat to ISO8601 (RFC3339) if possible, else keep raw.
+		pubTime, err := time.Parse(time.RFC1123Z, item.PubDate)
+		pubStr := item.PubDate
+		if err == nil {
+			pubStr = pubTime.Format(time.RFC3339)
+		} else {
+			pubTime, err = time.Parse(time.RFC1123, item.PubDate)
+			if err == nil {
+				pubStr = pubTime.Format(time.RFC3339)
+			}
+		}
+
+		node := &db.LinkDetail{
+			URL:  cleanURL,
+			Type: "news",
+			Meta: db.LinkMeta{
+				Title:         item.Title,
+				Description:   desc,
+				PublishedDate: pubStr,
+				Keywords:      config.DefaultTags,
+			},
+			Technical: db.LinkTechnical{
+				Domain:         domain,
+				IPMasked:       "RSS-Feed",
+				SSL:            strings.HasPrefix(cleanURL, "https"),
+				HTTPStatus:     200,
+				ResponseTimeMs: 10,
+				ContentType:    "text/html",
+			},
+			Analytics: db.LinkAnalytics{
+				SearchAppearances: 0,
+				LastCrawled:       time.Now().Format(time.RFC3339),
+				FirstSeen:         time.Now().Format(time.RFC3339),
+				CromRank:          100, // Notícias ganham boost inicial nativo
+				CategoryTags:      []string{config.Category},
+			},
+		}
+
+		err = siteDB.SaveNode(node)
+		if err != nil {
+			fmt.Printf("  -> [ERRO Salvando News] %v\n", err)
+		} else {
+			count++
+		}
+	}
+	fmt.Printf("✅ [📰 RSS] Processou %d notícias urgentes de %s\n", count, domain)
 }
 
 func processPage(urlStr string, domain string, baseURLObj *url.URL, config *TargetConfig) (*db.LinkDetail, []string) {

@@ -95,11 +95,12 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	ftsQuery := query + "*"
 	
 	rows, err := globalDB.Query(`
-		SELECT id, domain, url, title, description 
+		SELECT search_index.id, search_index.domain, search_index.url, search_index.title, search_index.description, search_index.published_date 
 		FROM search_index 
-		WHERE search_index.rowid IN (
-			SELECT rowid FROM search_fts WHERE search_fts MATCH ? ORDER BY rank LIMIT 20
-		)
+		JOIN search_fts ON search_index.rowid = search_fts.rowid
+		WHERE search_fts MATCH ? 
+		ORDER BY search_fts.rank ASC
+		LIMIT 50
 	`, ftsQuery)
 	
 	if err != nil {
@@ -110,23 +111,32 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 
 	// Ensure it is an empty array, not null, to prevent React crashes
 	results := make([]map[string]interface{}, 0)
+	newsResults := make([]map[string]interface{}, 0)
+
 	for rows.Next() {
 		var id, domain, url, title, description string
-		if err := rows.Scan(&id, &domain, &url, &title, &description); err != nil {
+		var pubDate sql.NullString
+		if err := rows.Scan(&id, &domain, &url, &title, &description, &pubDate); err != nil {
 			continue
 		}
-		// The frontend expects id to be formatted properly for detail page lookup
-		// In our DB, we need the domain to find the specific DB file later
+		
 		apiID := domain + "|" + id
 		
-		results = append(results, map[string]interface{}{
+		item := map[string]interface{}{
 			"id": apiID,
 			"url": url,
 			"title": title,
 			"snippet": description,
 			"site": domain,
 			"breadcrumb": domain + " › " + title,
-		})
+		}
+
+		if pubDate.Valid && pubDate.String != "" {
+			item["time"] = pubDate.String // Send date to frontend
+			newsResults = append(newsResults, item)
+		} else {
+			results = append(results, item)
+		}
 	}
 
 	response := map[string]interface{}{
@@ -134,9 +144,9 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		"total":   len(results),
 		"time":    0.02, // simulated fast response time
 		"results": results,
-		"images":  []interface{}{}, // Atualmente só ilustrativo, preparado para o futuro
+		"images":  []interface{}{}, 
 		"videos":  []interface{}{},
-		"news":    []interface{}{},
+		"news":    newsResults, // Notícias extraídas do RSS com Time Decay
 		"code":    []interface{}{},
 		"related": []interface{}{},
 		"hasMore": false,

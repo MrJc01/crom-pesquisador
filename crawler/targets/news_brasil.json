@@ -1,0 +1,20 @@
+{
+  "name": "Radar de Notícias - Brasil",
+  "urls": [
+    "https://g1.globo.com/rss/g1/",
+    "https://g1.globo.com/rss/g1/tecnologia/",
+    "https://g1.globo.com/rss/g1/politica/",
+    "https://noticias.uol.com.br/rss.xml",
+    "https://economia.uol.com.br/rss.xml",
+    "https://www.terra.com.br/rss/",
+    "https://rss.techtudo.com.br/feed",
+    "https://tecnoblog.net/feed/",
+    "https://canaltech.com.br/rss/",
+    "https://www.tabnews.com.br/recentes/rss"
+  ],
+  "limit_per_site": 50,
+  "delay_ms": 100,
+  "default_tags": ["Notícia", "Breaking News", "Brasil"],
+  "language": "pt-BR",
+  "category": "News"
+}

@@ -148,7 +148,8 @@ func OpenGlobalIndex() (*sql.DB, error) {
 		url TEXT UNIQUE NOT NULL,
 		title TEXT,
 		description TEXT,
-		keywords TEXT
+		keywords TEXT,
+		published_date TEXT
 	);
 
 	-- FTS virtual table for fast full-text search
@@ -168,6 +169,9 @@ func OpenGlobalIndex() (*sql.DB, error) {
 		INSERT INTO search_fts(rowid, title, description, keywords) VALUES (new.rowid, new.title, new.description, new.keywords);
 	END;
 	`
+	// Attempt to add published_date if table already exists (safe migration)
+	conn.Exec("ALTER TABLE search_index ADD COLUMN published_date TEXT;")
+
 	_, err = conn.Exec(schema)
 	if err != nil {
 		conn.Close()
