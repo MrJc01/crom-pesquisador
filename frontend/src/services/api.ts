@@ -1,6 +1,6 @@
 import type { SearchResponse, LinkDetail, LinkComment } from './types';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const API_BASE = import.meta.env.DEV ? 'http://localhost:8098/api' : '/api';
 
 export async function search(query: string, page = 1): Promise<SearchResponse> {
   const response = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}&page=${page}`);

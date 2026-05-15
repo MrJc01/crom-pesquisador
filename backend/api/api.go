@@ -54,9 +54,6 @@ func jsonResponse(w http.ResponseWriter, status int, data interface{}) {
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 // ----------------------------------------------------------------------------
 // Handlers
 // ----------------------------------------------------------------------------
