@@ -5,14 +5,13 @@ import { SearchBar } from '../components/SearchBar';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { ResultCard } from '../components/ResultCard';
 import { ChatPanel } from '../components/ChatPanel';
-import { KnowledgePanel } from '../components/KnowledgePanel';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useHistoryStore } from '../stores/historyStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { search as searchAPI } from '../services/api';
 import type { SearchResponse, TabType } from '../services/types';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Mousewheel, Keyboard } from 'swiper/modules';
+// @ts-ignore
 import 'swiper/css';
 
 const TABS = [
@@ -66,8 +65,6 @@ export function SearchPage() {
       setLoadingMore(false);
     });
   }, [data, loadingMore, query, page]);
-
-  const sentinelRef = useInfiniteScroll(loadMore, data?.hasMore ?? false, loadingMore);
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-surface-950 text-slate-900 dark:text-slate-100">
