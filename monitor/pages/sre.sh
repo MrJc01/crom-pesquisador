@@ -14,6 +14,14 @@ while true; do
     clear_screen
     print_header "🛡️ Central de Moderação SRE"
     
+    if ! command -v sqlite3 &> /dev/null; then
+        echo -e "${C_RED}[ERRO CRÍTICO] O pacote 'sqlite3' não está instalado!${C_RESET}"
+        echo -e "${C_YELLOW}Por favor, rode no seu VPS: sudo apt-get update && sudo apt-get install sqlite3 -y${C_RESET}"
+        echo ""
+        read -p "Pressione Enter para voltar..."
+        break
+    fi
+
     echo "1. 🔨 Banir Domínio (Remove do Buscador e Apaga Arquivos)"
     echo "2. 📋 Ver URLs Sugeridas pela Comunidade"
     echo "3. 🚨 Ver Denúncias de Conteúdo (Reports)"

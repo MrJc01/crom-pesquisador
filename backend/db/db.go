@@ -36,13 +36,15 @@ func OpenSiteDB(domain string) (*DB, error) {
 	}
 
 	dbPath := filepath.Join(DataDir, domain+".db")
-	conn, err := sql.Open("sqlite", dbPath)
+	// Add PRAGMAs to DSN to ensure all connections in the pool have busy_timeout
+	dsn := dbPath + "?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)"
+	conn, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open db for %s: %w", domain, err)
 	}
 
-	// Enable WAL mode for better concurrent performance
-	_, err = conn.Exec("PRAGMA journal_mode=WAL;")
+	// Double check PRAGMAs on first connection
+	_, err = conn.Exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=10000;")
 	if err != nil {
 		return nil, fmt.Errorf("failed to enable WAL: %w", err)
 	}
@@ -131,12 +133,13 @@ func (db *DB) migrate() error {
 // OpenGlobalIndex opens the global search index database
 func OpenGlobalIndex() (*sql.DB, error) {
 	dbPath := filepath.Join(IndexDir, "global_index.db")
-	conn, err := sql.Open("sqlite", dbPath)
+	dsn := dbPath + "?_pragma=busy_timeout(15000)&_pragma=journal_mode(WAL)"
+	conn, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open global index: %w", err)
 	}
 
-	_, err = conn.Exec("PRAGMA journal_mode=WAL;")
+	_, err = conn.Exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=15000;")
 	if err != nil {
 		return nil, fmt.Errorf("failed to enable WAL for index: %w", err)
 	}
