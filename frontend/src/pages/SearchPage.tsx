@@ -280,8 +280,8 @@ export function SearchPage() {
         <div className="max-w-screen-2xl mx-auto">
           {/* Tabs */}
           <nav className="flex justify-center md:justify-start items-center gap-1 px-2 md:px-6 overflow-x-auto no-scrollbar pt-2">
-            <button onClick={() => setChatOpen(!chatOpen)} className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium whitespace-nowrap rounded-lg transition-all ${chatOpen ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' : 'text-purple-500/70 dark:text-purple-400/70 hover:bg-purple-50 dark:hover:bg-purple-500/10'}`}>
-              <MessageCircle className="w-4 h-4" /> Chat IA
+            <button disabled className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium whitespace-nowrap rounded-lg transition-all opacity-70 cursor-not-allowed text-purple-500/70 dark:text-purple-400/70 bg-purple-50 dark:bg-purple-500/10`}>
+              <MessageCircle className="w-4 h-4" /> Rosa <span className="text-[10px] uppercase font-bold bg-purple-200 dark:bg-purple-500/30 px-1.5 py-0.5 rounded text-purple-700 dark:text-purple-300">Em breve</span>
             </button>
             <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0" />
             {TABS.map(t => (
