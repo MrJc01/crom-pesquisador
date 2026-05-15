@@ -3,10 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, ExternalLink, Shield, Globe, Clock, BarChart3,
   Tag, MessageCircle, ThumbsUp, ThumbsDown, Send, Lock,
-  Server, FileText, Eye, Calendar, User, Hash, ChevronRight,
+  Server, FileText, Eye, Calendar, User, Hash, ChevronRight, Flag
 } from 'lucide-react';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { getLinkDetail, postComment } from '../services/api';
+import { getLinkDetail, postComment, reportLink } from '../services/api';
 import type { LinkDetail, LinkComment } from '../services/types';
 
 export function LinkDetailPage() {
@@ -16,6 +16,10 @@ export function LinkDetailPage() {
   const [comment, setComment] = useState('');
   const [sending, setSending] = useState(false);
   const [activeSection, setActiveSection] = useState<'meta' | 'tech' | 'analytics' | 'comments'>('meta');
+  
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportStatus, setReportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     if (!id) return;
@@ -30,6 +34,22 @@ export function LinkDetailPage() {
     setData(prev => prev ? { ...prev, comments: [...prev.comments, newComment] } : prev);
     setComment('');
     setSending(false);
+  };
+
+  const handleReport = async () => {
+    if (!reportReason.trim() || !id) return;
+    setReportStatus('loading');
+    try {
+      await reportLink(id, data?.url || '', reportReason);
+      setReportStatus('success');
+      setTimeout(() => {
+        setShowReportModal(false);
+        setReportStatus('idle');
+        setReportReason('');
+      }, 2000);
+    } catch {
+      setReportStatus('error');
+    }
   };
 
   const formatDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', {
@@ -76,6 +96,9 @@ export function LinkDetailPage() {
             <p className="text-sm font-semibold truncate">{data.meta.title}</p>
             <p className="text-xs text-emerald-500 dark:text-teal-400 truncate">{data.url}</p>
           </div>
+          <button onClick={() => setShowReportModal(true)} title="Denunciar Conteúdo" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-500 border border-red-200 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all">
+            <Flag className="w-3.5 h-3.5" />
+          </button>
           <a href={data.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-brand-500 border border-brand-300 dark:border-brand-500/30 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-all">
             <ExternalLink className="w-3.5 h-3.5" /> Visitar
           </a>
@@ -262,6 +285,36 @@ export function LinkDetailPage() {
           </div>
         )}
       </main>
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-surface-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl">
+                <Flag className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Denunciar Conteúdo</h3>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">Por que este link deve ser investigado pelo esquadrão SRE da rede CROM?</p>
+            <textarea
+              placeholder="Ex: Contém malware, phishing, violação de direitos (DMCA) ou conteúdo ilegal."
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              rows={3}
+              className="w-full px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-surface-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-red-500 mb-4 resize-none"
+            />
+            {reportStatus === 'success' && <p className="text-emerald-500 text-sm mb-4">Denúncia enviada aos administradores. Obrigado!</p>}
+            {reportStatus === 'error' && <p className="text-red-500 text-sm mb-4">Falha ao enviar denúncia. Tente novamente.</p>}
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowReportModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl">Cancelar</button>
+              <button onClick={handleReport} disabled={reportStatus === 'loading' || reportStatus === 'success' || !reportReason.trim()} className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl disabled:opacity-50">
+                {reportStatus === 'loading' ? 'Enviando...' : 'Enviar Denúncia'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

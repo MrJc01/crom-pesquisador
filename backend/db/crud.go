@@ -215,3 +215,64 @@ func (db *DB) GetAllNodes() ([]LinkDetail, error) {
 	}
 	return nodes, nil
 }
+
+// ----------------------------------------------------------------------------
+// Governance (SRE & Community Moderation)
+// ----------------------------------------------------------------------------
+
+func SuggestURL(url string) error {
+	globalDB, err := OpenGlobalIndex()
+	if err != nil {
+		return err
+	}
+	defer globalDB.Close()
+
+	_, err = globalDB.Exec(`
+		INSERT INTO suggested_urls (url, status, suggested_at)
+		VALUES (?, 'pending', ?)
+		ON CONFLICT(url) DO NOTHING;
+	`, url, time.Now().Format(time.RFC3339))
+	return err
+}
+
+func ReportLink(metaID string, url string, reason string) error {
+	globalDB, err := OpenGlobalIndex()
+	if err != nil {
+		return err
+	}
+	defer globalDB.Close()
+
+	id := EnsureID("")
+	_, err = globalDB.Exec(`
+		INSERT INTO reports (id, meta_id, url, reason, reported_at)
+		VALUES (?, ?, ?, ?, ?)
+	`, id, metaID, url, reason, time.Now().Format(time.RFC3339))
+	return err
+}
+
+func BanDomain(domain string, reason string) error {
+	globalDB, err := OpenGlobalIndex()
+	if err != nil {
+		return err
+	}
+	defer globalDB.Close()
+
+	_, err = globalDB.Exec(`
+		INSERT INTO banned_domains (domain, reason, banned_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT(domain) DO UPDATE SET reason=excluded.reason, banned_at=excluded.banned_at;
+	`, domain, reason, time.Now().Format(time.RFC3339))
+	return err
+}
+
+func IsDomainBanned(domain string) bool {
+	globalDB, err := OpenGlobalIndex()
+	if err != nil {
+		return false // Assume not banned if DB error, or maybe safe to block?
+	}
+	defer globalDB.Close()
+
+	var exists int
+	err = globalDB.QueryRow(`SELECT 1 FROM banned_domains WHERE domain = ?`, domain).Scan(&exists)
+	return err == nil && exists == 1
+}

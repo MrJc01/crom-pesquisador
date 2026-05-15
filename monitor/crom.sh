@@ -17,8 +17,8 @@ while true; do
 
     # Mini Overview no Menu
     echo -e "${C_CYAN}[STATUS RÁPIDO]${C_RESET}"
-    if ss -tlnp 2>/dev/null | grep -q ":8080"; then
-        echo -e " Backend Go (API)  : ${C_GREEN}ONLINE${C_RESET} (Porta 8080)"
+    if ss -tlnp 2>/dev/null | grep -q ":8098"; then
+        echo -e " Backend Go (API)  : ${C_GREEN}ONLINE${C_RESET} (Porta 8098)"
     else
         echo -e " Backend Go (API)  : ${C_RED}OFFLINE${C_RESET}"
     fi
@@ -47,6 +47,7 @@ while true; do
     echo "5. 🧪 Suíte de Testes (QA E2E e Unitários)"
     echo "6. 📊 Gerar Relatórios Analíticos (Markdown)"
     echo "7. 🤖 Comandar Frota de Crawlers (JSON IaD)"
+    echo "8. 🛡️  Moderação SRE (Banimentos / Sugestões)"
     echo "0. Sair do CROM-OS"
     echo ""
     echo -n -e "${C_BOLD}Escolha uma opção: ${C_RESET}"
@@ -60,6 +61,7 @@ while true; do
         5) bash "$DIR/pages/tests.sh" ;;
         6) bash "$DIR/pages/reports.sh" ;;
         7) bash "$DIR/pages/fleet.sh" ;;
+        8) bash "$DIR/pages/sre.sh" ;;
         0) print_success "CROM-OS Encerrado."; exit 0 ;;
         *) print_error "Opção inválida!"; sleep 1 ;;
     esac

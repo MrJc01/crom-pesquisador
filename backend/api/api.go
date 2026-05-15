@@ -45,6 +45,10 @@ func SetupRouter() *chi.Mux {
 		r.Get("/suggest", handleSuggest)
 		r.Post("/chat", handleChat)
 		
+		// Governance
+		r.With(httprate.LimitByIP(5, 1*time.Minute)).Post("/suggest-url", handleSuggestURL)
+		r.With(httprate.LimitByIP(3, 1*time.Minute)).Post("/report", handleReportLink)
+		
 		r.Route("/link", func(r chi.Router) {
 			r.Get("/{id}", handleGetLink)
 			
@@ -99,6 +103,7 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		FROM search_index 
 		JOIN search_fts ON search_index.rowid = search_fts.rowid
 		WHERE search_fts MATCH ? 
+		  AND search_index.domain NOT IN (SELECT domain FROM banned_domains)
 		ORDER BY search_fts.rank ASC
 		LIMIT 50
 	`, ftsQuery)
@@ -248,6 +253,53 @@ func handlePostComment(w http.ResponseWriter, r *http.Request) {
 func handleGetCrawlers(w http.ResponseWriter, r *http.Request) {
 	// Will list running crawlers later by interacting with OS or internal state
 	jsonResponse(w, http.StatusOK, []interface{}{})
+}
+
+// ----------------------------------------------------------------------------
+// Governance Handlers
+// ----------------------------------------------------------------------------
+
+func handleSuggestURL(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.URL) == "" {
+		http.Error(w, "Invalid URL", http.StatusBadRequest)
+		return
+	}
+
+	// Basic validation
+	parsed, err := url.Parse(req.URL)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		http.Error(w, "Invalid URL format", http.StatusBadRequest)
+		return
+	}
+
+	if err := db.SuggestURL(req.URL); err != nil {
+		http.Error(w, "Failed to submit suggestion", http.StatusInternalServerError)
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, map[string]string{"message": "URL suggested successfully"})
+}
+
+func handleReportLink(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		MetaID string `json:"meta_id"`
+		URL    string `json:"url"`
+		Reason string `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Reason == "" {
+		http.Error(w, "Invalid report payload", http.StatusBadRequest)
+		return
+	}
+
+	if err := db.ReportLink(req.MetaID, req.URL, req.Reason); err != nil {
+		http.Error(w, "Failed to submit report", http.StatusInternalServerError)
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, map[string]string{"message": "Report submitted successfully"})
 }
 
 // ExtractDomain helper

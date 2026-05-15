@@ -2,10 +2,31 @@ import { Link } from 'react-router-dom';
 import { Settings, ShieldCheck, Search, Zap } from 'lucide-react';
 import { SearchBar } from '../components/SearchBar';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { suggestUrl } from '../services/api';
 
 export function HomePage() {
   const navigate = useNavigate();
+  const [showSuggestModal, setShowSuggestModal] = useState(false);
+  const [suggestInput, setSuggestInput] = useState('');
+  const [suggestStatus, setSuggestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  const handleSuggest = async () => {
+    if (!suggestInput) return;
+    setSuggestStatus('loading');
+    try {
+      await suggestUrl(suggestInput);
+      setSuggestStatus('success');
+      setTimeout(() => {
+        setShowSuggestModal(false);
+        setSuggestStatus('idle');
+        setSuggestInput('');
+      }, 2000);
+    } catch {
+      setSuggestStatus('error');
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-surface-950 text-slate-900 dark:text-slate-100">
@@ -64,6 +85,7 @@ export function HomePage() {
             <span>Zero tracking · Soberania Digital · Local-first</span>
           </div>
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+            <button onClick={() => setShowSuggestModal(true)} className="text-xs text-brand-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors font-medium">Recomendar Site</button>
             <a href="#" className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Termos</a>
             <a href="#" className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Privacidade</a>
             <a href="#" className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Contato</a>
@@ -71,6 +93,30 @@ export function HomePage() {
           </nav>
         </div>
       </footer>
+    {/* Suggest Modal */}
+    {showSuggestModal && (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-surface-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Recomendar Site</h3>
+          <p className="text-sm text-slate-500 mb-4">Conhece um site bom que o CROM ainda não indexou? Envie para nós!</p>
+          <input
+            type="url"
+            placeholder="https://exemplo.com.br"
+            value={suggestInput}
+            onChange={(e) => setSuggestInput(e.target.value)}
+            className="w-full px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-surface-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-brand-500 mb-4"
+          />
+          {suggestStatus === 'success' && <p className="text-emerald-500 text-sm mb-4">Site enviado com sucesso! Obrigado.</p>}
+          {suggestStatus === 'error' && <p className="text-red-500 text-sm mb-4">Erro ao enviar site. Tente novamente.</p>}
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setShowSuggestModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl">Cancelar</button>
+            <button onClick={handleSuggest} disabled={suggestStatus === 'loading' || suggestStatus === 'success'} className="px-4 py-2 text-sm font-medium text-white bg-brand-500 hover:bg-brand-600 rounded-xl disabled:opacity-50">
+              {suggestStatus === 'loading' ? 'Enviando...' : 'Enviar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }

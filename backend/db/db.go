@@ -168,6 +168,27 @@ func OpenGlobalIndex() (*sql.DB, error) {
 		INSERT INTO search_fts(search_fts, rowid, title, description, keywords) VALUES('delete', old.rowid, old.title, old.description, old.keywords);
 		INSERT INTO search_fts(rowid, title, description, keywords) VALUES (new.rowid, new.title, new.description, new.keywords);
 	END;
+
+	-- Governance Tables
+	CREATE TABLE IF NOT EXISTS banned_domains (
+		domain TEXT PRIMARY KEY,
+		reason TEXT,
+		banned_at TEXT
+	);
+
+	CREATE TABLE IF NOT EXISTS suggested_urls (
+		url TEXT PRIMARY KEY,
+		status TEXT DEFAULT 'pending',
+		suggested_at TEXT
+	);
+
+	CREATE TABLE IF NOT EXISTS reports (
+		id TEXT PRIMARY KEY,
+		meta_id TEXT NOT NULL,
+		url TEXT NOT NULL,
+		reason TEXT NOT NULL,
+		reported_at TEXT
+	);
 	`
 	// Attempt to add published_date if table already exists (safe migration)
 	conn.Exec("ALTER TABLE search_index ADD COLUMN published_date TEXT;")

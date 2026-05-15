@@ -54,5 +54,31 @@ export async function postComment(linkId: string, content: string): Promise<Link
   return response.json();
 }
 
+export async function suggestUrl(url: string): Promise<{message: string}> {
+  const response = await fetch(`${API_BASE}/suggest-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to suggest URL');
+  }
+  return response.json();
+}
+
+export async function reportLink(metaId: string, url: string, reason: string): Promise<{message: string}> {
+  const response = await fetch(`${API_BASE}/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ meta_id: metaId, url, reason }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to report link');
+  }
+  return response.json();
+}
+
 // Exportar referência ao API_BASE para uso em outros módulos
 export { API_BASE };
