@@ -39,7 +39,9 @@ pkill -f crom_api || true
 # Inicia a API nova em background (nohup) e joga logs para backend.log
 echo "Lançando Backend na porta 8098..."
 if [ -f .env ]; then
-  export $(grep -v '^#' .env | xargs)
+  set -a
+  source .env
+  set +a
 fi
 nohup ./backend/crom_api > backend/backend.log 2>&1 &
 
