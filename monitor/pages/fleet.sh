@@ -7,6 +7,12 @@ TARGETS_DIR="$PROJECT_ROOT/crawler/targets"
 
 list_fleet() {
     echo -e "${C_CYAN}[FROTA CROM-BOT - Infrastructure as Data]${C_RESET}"
+    if ! command -v jq &> /dev/null; then
+        echo -e "${C_RED}[ERRO CRÍTICO] O pacote 'jq' não está instalado!${C_RESET}"
+        echo -e "${C_YELLOW}Por favor, rode no seu VPS: sudo apt-get update && sudo apt-get install jq -y${C_RESET}"
+        return
+    fi
+    
     if [ ! -d "$TARGETS_DIR" ] || [ -z "$(ls -A "$TARGETS_DIR"/*.json 2>/dev/null)" ]; then
         echo -e "${C_GRAY}Nenhum arquivo JSON de alvo encontrado em $TARGETS_DIR${C_RESET}"
         return
@@ -35,7 +41,7 @@ list_fleet() {
 deploy_fleet() {
     echo -e "\n${C_CYAN}[DEPL0Y DA FROTA]${C_RESET}"
     if ! command -v jq &> /dev/null; then
-        print_error "O pacote 'jq' não está instalado. Instale-o com: sudo apt-get install jq"
+        print_error "O pacote 'jq' não está instalado. Instale-o com: sudo apt-get install jq -y"
         return
     fi
 

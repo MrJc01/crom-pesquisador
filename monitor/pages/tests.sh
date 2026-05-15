@@ -1,29 +1,36 @@
 #!/bin/bash
+
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$DIR/libs/ui.sh"
 PROJECT_ROOT="$DIR/.."
 
 clear_screen
-print_header "Suíte de Testes (QA)"
+print_header "🧪 Suíte de Testes QA (SRE)"
 
-echo "1. Rodar Testes Unitários do Backend (Go)"
-echo "2. Rodar Testes E2E do Frontend (Playwright)"
-echo "0. Voltar"
+echo -e "${C_CYAN}Iniciando Testes da Camada: Backend (Banco de Dados & Governança)${C_RESET}"
+cd "$PROJECT_ROOT/backend" || exit
+if go test ./db -v; then
+    print_success "Testes de Banco e Governança PASSARAM!"
+else
+    print_error "FALHA nos testes de Banco e Governança!"
+fi
+
 echo ""
-echo -n -e "${C_BOLD}Escolha uma opção: ${C_RESET}"
-read opcao
+echo -e "${C_CYAN}Iniciando Testes da Camada: Backend (API & Rotas)${C_RESET}"
+if go test ./api -v; then
+    print_success "Testes da API REST PASSARAM!"
+else
+    print_error "FALHA nos testes da API REST!"
+fi
 
-case $opcao in
-    1)
-        print_info "Rodando testes em Go..."
-        cd "$PROJECT_ROOT/backend" && go test -v ./tests/...
-        pause
-        ;;
-    2)
-        print_info "Rodando Playwright E2E Tests..."
-        cd "$PROJECT_ROOT/frontend" && npx playwright test --project=chromium
-        pause
-        ;;
-    0) exit 0 ;;
-    *) print_error "Opção inválida!"; sleep 1 ;;
-esac
+echo ""
+echo -e "${C_CYAN}Iniciando Testes da Camada: Crawler (Extração & Redes)${C_RESET}"
+cd "$PROJECT_ROOT/crawler" || exit
+if go test . -v; then
+    print_success "Testes do Crawler PASSARAM!"
+else
+    print_error "FALHA nos testes do Crawler!"
+fi
+
+echo ""
+wait_keypress
