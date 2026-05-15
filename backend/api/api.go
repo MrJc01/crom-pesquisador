@@ -32,6 +32,15 @@ func SetupRouter() *chi.Mux {
 	}))
 
 	r.Route("/api", func(r chi.Router) {
+		// Root API Endpoint (Healthcheck/Status)
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			jsonResponse(w, http.StatusOK, map[string]interface{}{
+				"name":    "CROM Engine API",
+				"version": "1.0.0",
+				"status":  "online",
+			})
+		})
+		
 		r.Get("/search", handleSearch)
 		r.Get("/suggest", handleSuggest)
 		r.Post("/chat", handleChat)

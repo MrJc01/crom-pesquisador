@@ -14,7 +14,7 @@ export function HomePage() {
         <nav className="flex items-center gap-4 md:gap-6">
           <Link to="/network" className="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors">CROM Network</Link>
           <Link to="/api" className="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors">API</Link>
-          <a href="https://github.com/crom-project" target="_blank" rel="noopener noreferrer" className="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors">Contribuir</a>
+          <a href="https://crom.run/apoio" target="_blank" rel="noopener noreferrer" className="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors">Contribuir</a>
           <Link to="/transparency" className="hidden sm:block text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors">Transparência</Link>
         </nav>
         <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />

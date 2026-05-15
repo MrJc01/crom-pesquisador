@@ -4,6 +4,7 @@ import { SearchPage } from './pages/SearchPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { LinkDetailPage } from './pages/LinkDetailPage';
+import { NetworkPage } from './pages/NetworkPage';
 import { useTheme } from './hooks/useTheme';
 
 function AppInner() {
@@ -16,6 +17,7 @@ function AppInner() {
       <Route path="/search" element={<SearchPage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/history" element={<HistoryPage />} />
+      <Route path="/network" element={<NetworkPage />} />
       <Route path="/link/:id" element={<LinkDetailPage />} />
     </Routes>
   );
