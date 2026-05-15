@@ -6,7 +6,7 @@ PROJECT_ROOT="$DIR/.."
 clear_screen
 print_header "Gerenciador do Backend (Go API)"
 
-echo "1. Iniciar Backend (Porta 8080)"
+echo "1. Iniciar Backend (Porta 8098)"
 echo "2. Parar Backend"
 echo "3. Ver Logs em Tempo Real"
 echo "0. Voltar"
@@ -19,8 +19,8 @@ LOG_FILE="$DIR/logs/backend.log"
 
 case $opcao in
     1)
-        if ss -tlnp | grep -q ":8080"; then
-            print_warning "Backend já está rodando na porta 8080."
+        if ss -tlnp | grep -q ":8098"; then
+            print_warning "Backend já está rodando na porta 8098."
         else
             print_info "Iniciando Backend..."
             cd "$PROJECT_ROOT" && go run backend/main.go > "$LOG_FILE" 2>&1 &
@@ -34,9 +34,9 @@ case $opcao in
             kill $(cat "$PID_FILE") 2>/dev/null
             rm "$PID_FILE"
             print_success "Backend parado via PID."
-        elif ss -tlnp | grep -q ":8080"; then
-            print_warning "Matando processo na porta 8080..."
-            fuser -k 8080/tcp
+        elif ss -tlnp | grep -q ":8098"; then
+            print_warning "Matando processo na porta 8098..."
+            fuser -k 8098/tcp
             print_success "Processo morto."
         else
             print_error "Backend não parece estar rodando."

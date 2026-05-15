@@ -23,10 +23,10 @@ while true; do
         echo -e " Backend Go (API)  : ${C_RED}OFFLINE${C_RESET}"
     fi
 
-    if ss -tlnp 2>/dev/null | grep -q ":3000"; then
-        echo -e " Frontend React    : ${C_GREEN}ONLINE${C_RESET} (Porta 3000)"
+    if [ -f "$PROJECT_ROOT/frontend/dist/index.html" ]; then
+        echo -e " Frontend React    : ${C_GREEN}ONLINE${C_RESET} (Estático via Nginx)"
     else
-        echo -e " Frontend React    : ${C_RED}OFFLINE${C_RESET}"
+        echo -e " Frontend React    : ${C_RED}OFFLINE${C_RESET} (Build não encontrado)"
     fi
     
     crawlers_count=$(ps aux | grep "crawler/main.go" | grep -v grep | wc -l)
