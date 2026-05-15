@@ -1,0 +1,26 @@
+{
+  "name": "CROM",
+  "short_name": "CROM",
+  "description": "Motor de busca soberano, privado e local-first.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "/logo.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/logo.ico",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.ico",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

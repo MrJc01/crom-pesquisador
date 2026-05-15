@@ -80,5 +80,10 @@ export async function reportLink(metaId: string, url: string, reason: string): P
   return response.json();
 }
 
+export function getProxyUrl(url: string): string {
+  if (!url) return '';
+  return `${API_BASE}/proxy?url=${encodeURIComponent(url)}`;
+}
+
 // Exportar referência ao API_BASE para uso em outros módulos
 export { API_BASE };

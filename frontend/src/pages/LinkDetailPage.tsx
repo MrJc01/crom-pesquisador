@@ -6,7 +6,7 @@ import {
   Server, FileText, Eye, Calendar, User, Hash, ChevronRight, Flag
 } from 'lucide-react';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { getLinkDetail, postComment, reportLink } from '../services/api';
+import { getLinkDetail, postComment, reportLink, getProxyUrl } from '../services/api';
 import type { LinkDetail, LinkComment } from '../services/types';
 
 export function LinkDetailPage() {
@@ -110,7 +110,7 @@ export function LinkDetailPage() {
         {/* OG Image Preview */}
         {data.meta.ogImage && (
           <div className="rounded-2xl overflow-hidden mb-6 animate-fade-in">
-            <img src={data.meta.ogImage} alt={data.meta.title} className="w-full h-48 md:h-64 object-cover" />
+            <img src={getProxyUrl(data.meta.ogImage)} alt={data.meta.title} className="w-full h-48 md:h-64 object-cover" />
           </div>
         )}
 

@@ -1,11 +1,15 @@
 package api
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/crom-pesquisador/backend/db"
@@ -14,6 +18,13 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
 )
+
+var searchCache sync.Map
+
+type cacheItem struct {
+	data      interface{}
+	expiresAt time.Time
+}
 
 // SetupRouter configures the Chi router with middleware and routes
 func SetupRouter() *chi.Mux {
@@ -44,6 +55,7 @@ func SetupRouter() *chi.Mux {
 		
 		r.Get("/search", handleSearch)
 		r.Get("/suggest", handleSuggest)
+		r.Get("/proxy", handleImageProxy)
 		r.Post("/chat", handleChat)
 		
 		// Governance
@@ -86,6 +98,21 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 			"hasMore": false, "page": 1,
 		})
 		return
+	}
+
+	// Cache Check
+	page := r.URL.Query().Get("page")
+	if page == "" {
+		page = "1"
+	}
+	cacheKey := query + "_pg" + page
+	if cached, ok := searchCache.Load(cacheKey); ok {
+		item := cached.(cacheItem)
+		if time.Now().Before(item.expiresAt) {
+			jsonResponse(w, http.StatusOK, item.data)
+			return
+		}
+		searchCache.Delete(cacheKey)
 	}
 
 	globalDB, err := db.OpenGlobalIndex()
@@ -158,7 +185,66 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		"hasMore": false,
 		"page":    1,
 	}
+
+	// Save to cache (5 minutes TTL)
+	searchCache.Store(cacheKey, cacheItem{
+		data:      response,
+		expiresAt: time.Now().Add(5 * time.Minute),
+	})
+
 	jsonResponse(w, http.StatusOK, response)
+}
+
+func handleImageProxy(w http.ResponseWriter, r *http.Request) {
+	targetURL := r.URL.Query().Get("url")
+	if targetURL == "" {
+		http.Error(w, "Missing URL", http.StatusBadRequest)
+		return
+	}
+
+	// Basic validation
+	parsed, err := url.Parse(targetURL)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		http.Error(w, "Invalid URL format", http.StatusBadRequest)
+		return
+	}
+
+	// Prevent proxying localhost / SSRF (Basic protection)
+	host := strings.ToLower(parsed.Hostname())
+	if host == "localhost" || host == "127.0.0.1" || strings.HasPrefix(host, "10.") || strings.HasPrefix(host, "192.168.") || strings.HasPrefix(host, "169.254.") {
+		http.Error(w, "Forbidden address", http.StatusForbidden)
+		return
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", targetURL, nil)
+	if err != nil {
+		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		return
+	}
+
+	// Masquerade User-Agent
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) CROM/1.0 ImageProxy")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, "Failed to fetch image", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Only proxy images or media
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "image/") && !strings.HasPrefix(contentType, "video/") {
+		http.Error(w, "Unsupported content type", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	// Set headers
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "public, max-age=86400") // Cache aggressively on client
+
+	io.Copy(w, resp.Body)
 }
 
 func handleSuggest(w http.ResponseWriter, r *http.Request) {

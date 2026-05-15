@@ -7,7 +7,7 @@ import { ResultCard } from '../components/ResultCard';
 import { ChatPanel } from '../components/ChatPanel';
 import { useHistoryStore } from '../stores/historyStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { search as searchAPI } from '../services/api';
+import { search as searchAPI, getProxyUrl } from '../services/api';
 import type { SearchResponse, TabType } from '../services/types';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Mousewheel, Keyboard } from 'swiper/modules';
@@ -189,7 +189,7 @@ export function SearchPage() {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {data.images.map((img, i) => (
                         <div key={img.id} className="group relative rounded-xl overflow-hidden bg-slate-100 dark:bg-surface-850 cursor-pointer animate-fade-in" style={{ animationDelay: `${i * 60}ms` }}>
-                          <img src={img.src} alt={img.alt} className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                          <img src={getProxyUrl(img.src)} alt={img.alt} className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
                             <div><p className="text-xs text-white font-medium">{img.alt}</p><p className="text-[10px] text-white/70">{img.site}</p></div>
                           </div>
@@ -204,7 +204,7 @@ export function SearchPage() {
                       {data.videos.map((v, i) => (
                         <article key={v.id} className="group flex gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-surface-850/50 transition-all animate-fade-in cursor-pointer" style={{ animationDelay: `${i * 80}ms` }}>
                           <div className="relative shrink-0 w-44 h-24 rounded-lg overflow-hidden bg-slate-200 dark:bg-surface-800">
-                            <img src={v.thumb} alt={v.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                            <img src={getProxyUrl(v.thumb)} alt={v.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
                             <span className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/80 text-white text-[10px] font-medium rounded">{v.duration}</span>
                           </div>
                           <div className="min-w-0"><h3 className="text-sm font-medium text-slate-800 dark:text-slate-200 group-hover:text-brand-500 line-clamp-2">{v.title}</h3><p className="text-xs text-slate-400 mt-1">{v.channel}</p><p className="text-xs text-slate-400">{v.views} visualizações</p></div>

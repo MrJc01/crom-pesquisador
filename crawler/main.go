@@ -100,6 +100,11 @@ func processSite(startURL string, config *TargetConfig) {
 		return
 	}
 
+	if !isSafeHost(baseURLObj.Hostname()) {
+		fmt.Printf("[🛡️ SSRF BLOCK] Alvo interno rejeitado: %s\n", baseURLObj.Hostname())
+		return
+	}
+
 	// Fetch robots.txt
 	robotsURL := fmt.Sprintf("%s://%s/robots.txt", baseURLObj.Scheme, baseURLObj.Host)
 	var robotsData *robotstxt.Group
@@ -383,4 +388,12 @@ func removeFragment(rawURL string) string {
 		return rawURL[:idx]
 	}
 	return rawURL
+}
+
+func isSafeHost(host string) bool {
+	h := strings.ToLower(host)
+	if h == "localhost" || h == "127.0.0.1" || h == "[::1]" || strings.HasPrefix(h, "10.") || strings.HasPrefix(h, "192.168.") || strings.HasPrefix(h, "169.254.") {
+		return false
+	}
+	return true
 }
