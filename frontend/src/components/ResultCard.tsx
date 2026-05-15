@@ -30,7 +30,7 @@ export function ResultCard({ result, index, openInNewTab = false }: Props) {
         </div>
 
         <a
-          href={`https://${result.url}`}
+          href={result.url.startsWith('http') ? result.url : `https://${result.url}`}
           target={openInNewTab ? '_blank' : '_self'}
           rel={openInNewTab ? 'noopener noreferrer' : undefined}
           className="block text-lg font-normal text-blue-700 dark:text-blue-400 hover:underline leading-snug mb-1 decoration-blue-400/40"
