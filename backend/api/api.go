@@ -154,85 +154,87 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	limit := 15
 	offset := (pageNum - 1) * limit
 	
-	rows, err := globalDB.Query(`
-		SELECT search_index.id, search_index.domain, search_index.url, search_index.type, search_index.title, search_index.description, search_index.published_date 
+	// 1. Get Absolute Total Matches
+	var absoluteTotal int
+	globalDB.QueryRow(`
+		SELECT COUNT(*) 
 		FROM search_index 
 		JOIN search_fts ON search_index.rowid = search_fts.rowid
 		WHERE search_fts MATCH ? 
 		  AND search_index.domain NOT IN (SELECT domain FROM banned_domains)
-		ORDER BY search_fts.rank ASC
-		LIMIT ? OFFSET ?
-	`, ftsQuery, limit, offset)
-	
-	if err != nil {
-		http.Error(w, "Search failed", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
+	`, ftsQuery).Scan(&absoluteTotal)
 
-	// Ensure arrays are not null
+	// 2. Fetch results per type
 	results := make([]map[string]interface{}, 0)
 	newsResults := make([]map[string]interface{}, 0)
 	images := make([]map[string]interface{}, 0)
 	videos := make([]map[string]interface{}, 0)
 	code := make([]map[string]interface{}, 0)
 
-	for rows.Next() {
-		var id, domain, url, nodeType, title, description string
-		var pubDate sql.NullString
-		if err := rows.Scan(&id, &domain, &url, &nodeType, &title, &description, &pubDate); err != nil {
+	typesToFetch := []string{"page", "image", "video", "code"}
+	hasMore := false
+
+	for _, nodeType := range typesToFetch {
+		rows, err := globalDB.Query(`
+			SELECT search_index.id, search_index.domain, search_index.url, search_index.type, search_index.title, search_index.description, search_index.published_date 
+			FROM search_index 
+			JOIN search_fts ON search_index.rowid = search_fts.rowid
+			WHERE search_fts MATCH ? 
+			  AND search_index.type = ?
+			  AND search_index.domain NOT IN (SELECT domain FROM banned_domains)
+			ORDER BY search_fts.rank ASC
+			LIMIT ? OFFSET ?
+		`, ftsQuery, nodeType, limit, offset)
+		
+		if err != nil {
 			continue
 		}
 		
-		apiID := domain + "|" + id
-		
-		if nodeType == "image" {
-			images = append(images, map[string]interface{}{
-				"id": apiID,
-				"src": description, // We stored actual img src in description
-				"alt": title,
-				"site": domain,
-			})
-		} else if nodeType == "video" {
-			videos = append(videos, map[string]interface{}{
-				"id": apiID,
-				"title": title,
-				"thumb": description, // We stored src or thumb here
-				"channel": domain,
-				"views": "N/A",
-				"duration": "0:00",
-			})
-		} else if nodeType == "code" {
-			code = append(code, map[string]interface{}{
-				"id": apiID,
-				"title": title,
-				"language": "txt", // Can extract from title later
-				"content": description,
-				"site": domain,
-			})
-		} else {
-			// Page
-			item := map[string]interface{}{
-				"id": apiID,
-				"url": url,
-				"title": title,
-				"snippet": description,
-				"site": domain,
-				"breadcrumb": domain + " › " + title,
+		count := 0
+		for rows.Next() {
+			count++
+			var id, domain, url, t, title, description string
+			var pubDate sql.NullString
+			if err := rows.Scan(&id, &domain, &url, &t, &title, &description, &pubDate); err != nil {
+				continue
 			}
-
-			if pubDate.Valid && pubDate.String != "" {
-				item["time"] = pubDate.String // Send date to frontend
-				newsResults = append(newsResults, item)
+			
+			apiID := domain + "|" + id
+			
+			if nodeType == "image" {
+				images = append(images, map[string]interface{}{
+					"id": apiID, "src": description, "alt": title, "site": domain,
+				})
+			} else if nodeType == "video" {
+				videos = append(videos, map[string]interface{}{
+					"id": apiID, "title": title, "thumb": description, "channel": domain, "views": "N/A", "duration": "0:00",
+				})
+			} else if nodeType == "code" {
+				code = append(code, map[string]interface{}{
+					"id": apiID, "title": title, "language": "txt", "content": description, "site": domain,
+				})
 			} else {
-				results = append(results, item)
+				item := map[string]interface{}{
+					"id": apiID, "url": url, "title": title, "snippet": description, "site": domain, "breadcrumb": domain + " › " + title,
+				}
+				if pubDate.Valid && pubDate.String != "" {
+					item["time"] = pubDate.String
+					newsResults = append(newsResults, item)
+				} else {
+					results = append(results, item)
+				}
 			}
+		}
+		rows.Close()
+		
+		if count == limit {
+			hasMore = true
 		}
 	}
 
 	response := map[string]interface{}{
 		"query":   query,
-		"total":   len(results) + len(newsResults) + len(images) + len(videos) + len(code),
+		"total":   absoluteTotal,
 		"time":    0.02,
 		"results": results,
 		"images":  images, 
@@ -240,7 +242,7 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		"news":    newsResults,
 		"code":    code,
 		"related": []interface{}{},
-		"hasMore": len(results)+len(newsResults)+len(images)+len(videos)+len(code) == limit, // simple heuristic
+		"hasMore": hasMore,
 		"page":    pageNum,
 	}
 
