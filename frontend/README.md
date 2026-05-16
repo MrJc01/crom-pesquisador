@@ -1,73 +1,26 @@
-# React + TypeScript + Vite
+# CROM Frontend (React + Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A interface de usuário (UI) premium do CROM Pesquisador, focada em Velocidade, Beleza (UI Glassmorphism e Dark Mode) e Soberania Digital.
 
-Currently, two official plugins are available:
+## 📂 O que essa pasta deve ter?
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Todo o ecossistema Client-Side: HTML, CSS (Tailwind), React Hooks, Componentes UI, Store (Zustand para estado), e lógicas de roteamento (`react-router-dom`). Esta camada não toca em banco de dados; ela APENAS consome a API HTTP rodando no Backend.
 
-## React Compiler
+## 📄 Estrutura de Arquivos
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+*   **`src/components/`**: Peças de montar (Lego) do design.
+    *   `ResultCard.tsx`: O cartão que exibe a resposta textual.
+    *   `SearchBar.tsx`: O input de texto central.
+    *   `ThemeToggle.tsx`: Troca entre claro/escuro.
+*   **`src/pages/`**: As telas inteiras da aplicação.
+    *   `SearchPage.tsx`: A tela que mostra e pagina os resultados (Imagens, Vídeos, Código). Responsável por gerenciar o Scroll Infinito usando referências.
+    *   `AdminPage.tsx`: Painel de controle para aprovação de URLs sugeridas (via Token Seguro).
+*   **`src/services/`**: Camada de consumo.
+    *   `api.ts`: Funções TypeScript (Axios/Fetch) para contatar o backend (porta 8098).
+*   **`src/stores/`**: Gerenciamento de Estado.
+    *   Arquivos Zustand para salvar modo dark, tamanho de fonte, configurações locais no `localStorage` sem usar cookies de rastreamento.
 
-## Expanding the ESLint configuration
+## 🚀 Como funciona e o que precisa fazer
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Construído via `npm run build` (Vite) na hora do deploy, ele vira um pacote estático `dist/` hospedado no NGINX na porta 80.
+O frontend deve manter a fluidez de design a todo custo. Deve garantir que abas como "Notícias", "Imagens" e "Todos" operem sem gargalos, carregando a paginação dinâmica conforme o usuário desce (Scroll Observer) e tratar todas as imagens através do Proxy do Backend se possível, caso hajam erros de CSP (Content Security Policy).
