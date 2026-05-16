@@ -179,7 +179,7 @@ export function SearchPage() {
                   const originalIndex = data.results.length - 1 - reversedIndex;
                   return (
                     <SwiperSlide key={r.id} className="w-full !h-auto flex justify-center">
-                      <div className="w-full max-w-[700px] animate-fade-in">
+                      <div className="w-full max-w-[700px] mx-auto animate-fade-in">
                         <ResultCard result={r} index={originalIndex} openInNewTab={openInNewTab} />
                       </div>
                     </SwiperSlide>
@@ -191,7 +191,7 @@ export function SearchPage() {
             {/* Outras Abas (Fallback para scroll normal temporariamente) */}
             {!loading && tab !== 'all' && data && (
               <div ref={scrollContainerRef} className="w-full h-full overflow-y-auto p-4 md:p-6 flex justify-center">
-                <div className="w-full max-w-[700px] pb-8">
+                <div className="w-full max-w-[700px] mx-auto pb-8">
                   {/* Tab: Imagens */}
                   {tab === 'images' && (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
