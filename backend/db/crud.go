@@ -89,7 +89,6 @@ func IndexNode(detail *LinkDetail) {
 		fmt.Printf("Error opening global index: %v\n", err)
 		return
 	}
-	defer globalDB.Close()
 
 	keywordsBytes, _ := json.Marshal(detail.Meta.Keywords)
 	
@@ -232,7 +231,6 @@ func SuggestURL(url string) error {
 	if err != nil {
 		return err
 	}
-	defer globalDB.Close()
 
 	_, err = globalDB.Exec(`
 		INSERT INTO suggested_urls (url, status, suggested_at)
@@ -247,7 +245,6 @@ func ReportLink(metaID string, url string, reason string) error {
 	if err != nil {
 		return err
 	}
-	defer globalDB.Close()
 
 	id := EnsureID("")
 	_, err = globalDB.Exec(`
@@ -262,7 +259,6 @@ func BanDomain(domain string, reason string) error {
 	if err != nil {
 		return err
 	}
-	defer globalDB.Close()
 
 	_, err = globalDB.Exec(`
 		INSERT INTO banned_domains (domain, reason, banned_at)
@@ -277,7 +273,6 @@ func IsDomainBanned(domain string) bool {
 	if err != nil {
 		return false // Assume not banned if DB error, or maybe safe to block?
 	}
-	defer globalDB.Close()
 
 	var exists int
 	err = globalDB.QueryRow(`SELECT 1 FROM banned_domains WHERE domain = ?`, domain).Scan(&exists)

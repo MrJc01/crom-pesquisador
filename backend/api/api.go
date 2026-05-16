@@ -142,7 +142,6 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Search index unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	defer globalDB.Close()
 
 	// Query FTS table
 	ftsQuery := query + "*"
@@ -458,7 +457,6 @@ func handleAdminStats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}
-	defer globalDB.Close()
 
 	var totalNodes int
 	globalDB.QueryRow("SELECT COUNT(*) FROM search_index").Scan(&totalNodes)
@@ -479,7 +477,6 @@ func handleAdminSuggestions(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}
-	defer globalDB.Close()
 
 	rows, err := globalDB.Query("SELECT url, status, suggested_at FROM suggested_urls WHERE status = 'pending' LIMIT 50")
 	if err != nil {
@@ -523,7 +520,6 @@ func handleAdminAction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}
-	defer globalDB.Close()
 
 	if req.Action == "approve" || req.Action == "reject" {
 		_, err := globalDB.Exec("UPDATE suggested_urls SET status = ? WHERE url = ?", req.Action, req.URL)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	_ "modernc.org/sqlite" // Pure Go SQLite driver
 )
@@ -12,6 +13,11 @@ import (
 // DataDir is the path where databases will be stored
 var DataDir = "./data/sites"
 var IndexDir = "./data/index"
+
+var (
+	globalDBPool *sql.DB
+	globalDBOnce sync.Once
+)
 
 // DB struct holds the connection for a specific site
 type DB struct {
@@ -132,17 +138,24 @@ func (db *DB) migrate() error {
 
 // OpenGlobalIndex opens the global search index database
 func OpenGlobalIndex() (*sql.DB, error) {
-	dbPath := filepath.Join(IndexDir, "global_index.db")
-	dsn := dbPath + "?_pragma=busy_timeout(15000)&_pragma=journal_mode(WAL)"
-	conn, err := sql.Open("sqlite", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open global index: %w", err)
-	}
+	var initErr error
+	globalDBOnce.Do(func() {
+		dbPath := filepath.Join(IndexDir, "global_index.db")
+		dsn := dbPath + "?_pragma=busy_timeout(15000)&_pragma=journal_mode(WAL)"
+		conn, err := sql.Open("sqlite", dsn)
+		if err != nil {
+			initErr = fmt.Errorf("failed to open global index: %w", err)
+			return
+		}
 
-	_, err = conn.Exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=15000;")
-	if err != nil {
-		return nil, fmt.Errorf("failed to enable WAL for index: %w", err)
-	}
+		_, err = conn.Exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=15000;")
+		if err != nil {
+			initErr = fmt.Errorf("failed to enable WAL for index: %w", err)
+			return
+		}
+		
+		// Fix SQLITE_BUSY by serializing writes to the global index
+		conn.SetMaxOpenConns(1)
 
 	schema := `
 	CREATE TABLE IF NOT EXISTS search_index (
@@ -202,11 +215,18 @@ func OpenGlobalIndex() (*sql.DB, error) {
 
 	_, err = conn.Exec(schema)
 	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("failed to migrate global index: %w", err)
+		initErr = fmt.Errorf("failed to migrate global index: %w", err)
+		return
 	}
 
-	return conn, nil
+		globalDBPool = conn
+	})
+
+	if initErr != nil {
+		return nil, initErr
+	}
+
+	return globalDBPool, nil
 }
 
 // Ensure the tables have standard initial data (e.g., when a crawler inserts them)
