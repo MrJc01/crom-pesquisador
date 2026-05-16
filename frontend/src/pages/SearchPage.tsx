@@ -9,10 +9,6 @@ import { useHistoryStore } from '../stores/historyStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { search as searchAPI, getProxyUrl } from '../services/api';
 import type { SearchResponse, TabType } from '../services/types';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Mousewheel, Keyboard } from 'swiper/modules';
-// @ts-ignore
-import 'swiper/css';
 
 const TABS = [
   { id: 'all' as TabType, label: 'Todos', icon: Search },
@@ -31,8 +27,6 @@ export function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
-  const [swiperInstance, setSwiperInstance] = useState<any>(null);
-  const prevResultsLengthRef = useRef(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const addHistory = useHistoryStore(s => s.addEntry);
   const historyEnabled = useSettingsStore(s => s.historyEnabled);
@@ -43,7 +37,6 @@ export function SearchPage() {
     if (!query) return;
     setPage(1);
     setLoading(true);
-    prevResultsLengthRef.current = 0; // Reset length on new search
     searchAPI(query, 1).then(res => {
       setData(res);
       setLoading(false);
@@ -70,28 +63,15 @@ export function SearchPage() {
     });
   }, [data, loadingMore, query, page]);
 
-  // Adjust Swiper scroll position when new items are added to the TOP (prepended)
-  useEffect(() => {
-    if (swiperInstance && data && tab === 'all') {
-      const currentLength = data.results.length;
-      if (currentLength > prevResultsLengthRef.current) {
-        const diff = currentLength - prevResultsLengthRef.current;
-        if (prevResultsLengthRef.current > 0) {
-          // Loaded more items (prepended to DOM). Adjust index to prevent visual jump
-          const newIndex = swiperInstance.activeIndex + diff;
-          swiperInstance.slideTo(newIndex, 0, false);
-        } else {
-          // First load: Start at the BOTTOM (most relevant result)
-          setTimeout(() => {
-            if (swiperInstance && !swiperInstance.destroyed) {
-              swiperInstance.slideTo(currentLength - 1, 0, false);
-            }
-          }, 50);
-        }
-        prevResultsLengthRef.current = currentLength;
+  // Handle infinite scroll
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 200) {
+      if (data?.hasMore && !loadingMore && query) {
+        loadMore();
       }
     }
-  }, [data?.results.length, swiperInstance, tab]);
+  }, [data?.hasMore, loadingMore, loadMore, query]);
 
   // Reset scroll when changing tabs
   useEffect(() => {
@@ -132,66 +112,46 @@ export function SearchPage() {
               </div>
             )}
 
-            {/* Tab: Todos (TikTok Style Vertical Swiper - Adaptive) */}
-            {!loading && tab === 'all' && data && data.results.length > 0 && (
-              <Swiper
-                direction="vertical"
-                slidesPerView="auto"
-                spaceBetween={24}
-                mousewheel={true}
-                keyboard={{ enabled: true }}
-                modules={[Mousewheel, Keyboard]}
-                className="w-full h-full px-4 [&>.swiper-wrapper]:mt-auto"
-                onSwiper={setSwiperInstance}
-                onReachBeginning={() => {
-                  // We hit the TOP (which means we need to load MORE, because array is reversed)
-                  if (data.hasMore && !loadingMore) {
-                    loadMore();
-                  }
-                }}
+            {/* Scroll Container for all Tabs */}
+            {!loading && data && data.results.length > 0 && (
+              <div 
+                ref={scrollContainerRef} 
+                onScroll={handleScroll}
+                className="w-full h-full overflow-y-auto p-4 md:p-6 flex justify-center"
               >
-                {/* Loading More Slide at the TOP */}
-                {data.hasMore && (
-                  <SwiperSlide className="w-full !h-auto flex flex-col items-center justify-center py-6">
-                    <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-                  </SwiperSlide>
-                )}
-                
-                {/* End of results / Related Searches Slide at the TOP */}
-                {!data.hasMore && data.related.length > 0 && (
-                  <SwiperSlide className="w-full !h-auto flex flex-col items-center justify-center py-12">
-                    <div className="w-full max-w-[700px] text-center mx-auto">
-                      <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-6">Fim dos resultados</h2>
-                      <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4">Pesquisas relacionadas</h3>
-                      <div className="flex flex-wrap justify-center gap-2">
-                        {data.related.map(r => (
-                          <Link key={r} to={`/search?q=${encodeURIComponent(r)}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-surface-800 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-500 hover:text-brand-500 transition-all">
-                            <Search className="w-4 h-4" />{r}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  </SwiperSlide>
-                )}
-
-                {/* Reversed Results - Most relevant is at the BOTTOM */}
-                {[...data.results].reverse().map((r, reversedIndex) => {
-                  const originalIndex = data.results.length - 1 - reversedIndex;
-                  return (
-                    <SwiperSlide key={r.id} className="w-full !h-auto flex justify-center">
-                      <div className="w-full max-w-[700px] mx-auto animate-fade-in">
-                        <ResultCard result={r} index={originalIndex} openInNewTab={openInNewTab} />
-                      </div>
-                    </SwiperSlide>
-                  );
-                })}
-              </Swiper>
-            )}
-
-            {/* Outras Abas (Fallback para scroll normal temporariamente) */}
-            {!loading && tab !== 'all' && data && (
-              <div ref={scrollContainerRef} className="w-full h-full overflow-y-auto p-4 md:p-6 flex justify-center">
                 <div className="w-full max-w-[700px] mx-auto pb-8">
+                  {/* Tab: Todos */}
+                  {tab === 'all' && (
+                    <div className="flex flex-col gap-6">
+                      {data.results.map((r, i) => (
+                        <div key={r.id} className="w-full animate-fade-in">
+                          <ResultCard result={r} index={i} openInNewTab={openInNewTab} />
+                        </div>
+                      ))}
+                      
+                      {/* Loading More Indicator */}
+                      {data.hasMore && (
+                        <div className="w-full flex justify-center py-6">
+                          <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
+                        </div>
+                      )}
+                      
+                      {/* End of results / Related Searches */}
+                      {!data.hasMore && data.related.length > 0 && (
+                        <div className="w-full text-center py-12">
+                          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-6">Fim dos resultados</h2>
+                          <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4">Pesquisas relacionadas</h3>
+                          <div className="flex flex-wrap justify-center gap-2">
+                            {data.related.map(r => (
+                              <Link key={r} to={`/search?q=${encodeURIComponent(r)}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-surface-800 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-500 hover:text-brand-500 transition-all">
+                                <Search className="w-4 h-4" />{r}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {/* Tab: Imagens */}
                   {tab === 'images' && (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
