@@ -586,54 +586,52 @@ func getKnowledgePanel(query string) *KnowledgePanel {
 	q := strings.ToLower(strings.TrimSpace(query))
 	
 	if q == "dolar" || q == "dólar" || q == "usd" || q == "cotacao dolar" || q == "cotação dólar" {
-		return fetchAwesomeAPI("USD-BRL", "Dólar Comercial", "Moeda dos Estados Unidos", "Acompanhe a cotação em tempo real da economia global.")
+		return fetchBinanceAPI("USDTBRL", "Dólar (USDT/BRL)", "Referência via Tether (Binance)", "Acompanhe a cotação em tempo real através do pareamento cripto.")
 	}
 	if q == "bitcoin" || q == "btc" || q == "cotacao bitcoin" {
-		return fetchAwesomeAPI("BTC-BRL", "Bitcoin (BTC)", "Criptomoeda Descentralizada", "Ouro digital e reserva de valor soberana.")
+		return fetchBinanceAPI("BTCBRL", "Bitcoin (BTC)", "Criptomoeda Descentralizada", "Ouro digital e reserva de valor soberana.")
 	}
 	
 	return nil
 }
 
-func fetchAwesomeAPI(pair, title, subtitle, desc string) *KnowledgePanel {
-	resp, err := http.Get("https://economia.awesomeapi.com.br/last/" + pair)
+func fetchBinanceAPI(symbol, title, subtitle, desc string) *KnowledgePanel {
+	resp, err := http.Get("https://api.binance.com/api/v3/ticker/24hr?symbol=" + symbol)
 	if err != nil || resp.StatusCode != 200 {
-		fmt.Printf("[ORÁCULO ERRO] Falha ao acessar AwesomeAPI para %s: %v\n", pair, err)
+		fmt.Printf("[ORÁCULO ERRO] Falha ao acessar Binance para %s: %v\n", symbol, err)
 		return createFallbackPanel(title, subtitle, desc)
 	}
 	defer resp.Body.Close()
 
 	var data map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		fmt.Printf("[ORÁCULO ERRO] Falha no Parse do JSON para %s: %v\n", pair, err)
+		fmt.Printf("[ORÁCULO ERRO] Falha no Parse do JSON Binance %s: %v\n", symbol, err)
 		return createFallbackPanel(title, subtitle, desc)
 	}
 
-	key := strings.Replace(pair, "-", "", 1)
-	if infoRaw, ok := data[key]; ok {
-		// As vezes a API muda a estrutura ou da erro interno, vamos usar type assertion seguro
-		if info, ok := infoRaw.(map[string]interface{}); ok {
-			high, _ := info["high"].(string)
-			low, _ := info["low"].(string)
-			bid, _ := info["bid"].(string)
-			pct, _ := info["pctChange"].(string)
+	high, _ := data["highPrice"].(string)
+	low, _ := data["lowPrice"].(string)
+	last, _ := data["lastPrice"].(string)
+	pct, _ := data["priceChangePercent"].(string)
 
-			return &KnowledgePanel{
-				Title:       title,
-				Subtitle:    subtitle,
-				Description: desc,
-				Facts: []Fact{
-					{Label: "Cotação Atual", Value: "R$ " + bid},
-					{Label: "Variação (24h)", Value: pct + "%"},
-					{Label: "Máxima (24h)", Value: "R$ " + high},
-					{Label: "Mínima (24h)", Value: "R$ " + low},
-				},
-			}
-		}
+	// Format values to a max of 2 decimal places for neatness if they are floats
+	formatFloatStr := func(val string) string {
+		var f float64
+		fmt.Sscanf(val, "%f", &f)
+		return fmt.Sprintf("%.2f", f)
 	}
-	
-	fmt.Printf("[ORÁCULO ERRO] Chave %s não encontrada na resposta.\n", key)
-	return createFallbackPanel(title, subtitle, desc)
+
+	return &KnowledgePanel{
+		Title:       title,
+		Subtitle:    subtitle,
+		Description: desc,
+		Facts: []Fact{
+			{Label: "Cotação Atual", Value: "R$ " + formatFloatStr(last)},
+			{Label: "Variação (24h)", Value: formatFloatStr(pct) + "%"},
+			{Label: "Máxima (24h)", Value: "R$ " + formatFloatStr(high)},
+			{Label: "Mínima (24h)", Value: "R$ " + formatFloatStr(low)},
+		},
+	}
 }
 
 func createFallbackPanel(title, subtitle, desc string) *KnowledgePanel {
