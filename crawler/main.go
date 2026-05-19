@@ -160,7 +160,7 @@ func processSite(startURL string, config *TargetConfig) {
 	fmt.Printf("[🗺️ SITEMAP] Buscando Sitemaps para %s...\n", baseDomain)
 	var sitemapURLs []string
 	if robotsObj != nil && len(robotsObj.Sitemaps) > 0 {
-		for sitemapURL := range robotsObj.Sitemaps {
+		for _, sitemapURL := range robotsObj.Sitemaps {
 			sitemapURLs = append(sitemapURLs, fetchSitemapURLs(sitemapURL)...)
 		}
 	} else {
