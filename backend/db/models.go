@@ -31,6 +31,7 @@ type LinkMeta struct {
 	PublishedDate string   `json:"publishedDate,omitempty"`
 	ModifiedDate  string   `json:"modifiedDate,omitempty"`
 	Language      string   `json:"language,omitempty"`
+	ContentHash   string   `json:"contentHash,omitempty"`
 	Keywords      []string `json:"keywords"`
 }
 

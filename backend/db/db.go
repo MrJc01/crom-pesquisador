@@ -167,8 +167,11 @@ func OpenGlobalIndex() (*sql.DB, error) {
 		description TEXT,
 		keywords TEXT,
 		published_date TEXT,
-		embedding BLOB
+		embedding BLOB,
+		content_hash TEXT
 	);
+
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_search_hash ON search_index(content_hash);
 
 	-- FTS virtual table for fast full-text search
 	CREATE VIRTUAL TABLE IF NOT EXISTS search_fts USING fts5(
@@ -226,6 +229,10 @@ func OpenGlobalIndex() (*sql.DB, error) {
 		initErr = fmt.Errorf("failed to migrate global index: %w", err)
 		return
 	}
+
+	// Migração silenciosa para deduplicação criptográfica
+	conn.Exec("ALTER TABLE search_index ADD COLUMN content_hash TEXT;")
+	conn.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_search_hash ON search_index(content_hash);")
 
 		globalDBPool = conn
 	})

@@ -93,11 +93,11 @@ func IndexNode(detail *LinkDetail) {
 	keywordsBytes, _ := json.Marshal(detail.Meta.Keywords)
 	
 	_, err = globalDB.Exec(`
-		INSERT INTO search_index (id, domain, url, title, description, keywords, published_date, type)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO search_index (id, domain, url, title, description, keywords, published_date, type, content_hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(url) DO UPDATE SET
-			title=excluded.title, description=excluded.description, keywords=excluded.keywords, published_date=excluded.published_date, type=excluded.type;
-	`, detail.ID, detail.Technical.Domain, detail.URL, detail.Meta.Title, detail.Meta.Description, string(keywordsBytes), detail.Meta.PublishedDate, detail.Type)
+			title=excluded.title, description=excluded.description, keywords=excluded.keywords, published_date=excluded.published_date, type=excluded.type, content_hash=excluded.content_hash;
+	`, detail.ID, detail.Technical.Domain, detail.URL, detail.Meta.Title, detail.Meta.Description, string(keywordsBytes), detail.Meta.PublishedDate, detail.Type, detail.Meta.ContentHash)
 	
 	if err != nil {
 		fmt.Printf("Error indexing node %s: %v\n", detail.URL, err)

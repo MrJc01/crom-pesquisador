@@ -448,6 +448,28 @@ func processPage(urlStr string, domain string, baseURLObj *url.URL, config *Targ
 		}
 	})
 
+	doc.Find("link[rel='canonical']").Each(func(i int, s *goquery.Selection) {
+		if href, exists := s.Attr("href"); exists {
+			parsedCanonical, err := url.Parse(href)
+			if err == nil {
+				node.Meta.Canonical = baseURLObj.ResolveReference(parsedCanonical).String()
+				// Se a canonical for diferente da URL atual (e do mesmo domínio), sobrepõe
+				if node.Meta.Canonical != "" && strings.HasPrefix(node.Meta.Canonical, "http") {
+					node.URL = node.Meta.Canonical
+				}
+			}
+		}
+	})
+
+	// Gerar ContentHash para Deduplicação Exata
+	bodyText := strings.TrimSpace(doc.Find("body").Text())
+	if len(bodyText) > 2000 {
+		bodyText = bodyText[:2000]
+	}
+	hashInput := node.Meta.Title + "|" + bodyText
+	hash := sha256.Sum256([]byte(hashInput))
+	node.Meta.ContentHash = hex.EncodeToString(hash[:])
+
 	var links []string
 	
 	// Process Links
@@ -468,7 +490,7 @@ func processPage(urlStr string, domain string, baseURLObj *url.URL, config *Targ
 		}
 		
 		absoluteURL := baseURLObj.ResolveReference(parsedHref)
-		absStr := removeFragment(absoluteURL.String())
+		absStr := normalizeURL(absoluteURL)
 		
 		if absoluteURL.Scheme == "http" || absoluteURL.Scheme == "https" {
 			if extractDomain(absStr) == domain {
@@ -669,11 +691,20 @@ func extractDomain(rawURL string) string {
 	return strings.TrimPrefix(domain, "www.")
 }
 
-func removeFragment(rawURL string) string {
-	if idx := strings.Index(rawURL, "#"); idx != -1 {
-		return rawURL[:idx]
+func normalizeURL(u *url.URL) string {
+	// Remove fragment
+	u.Fragment = ""
+	
+	// Remove tracking parameters
+	q := u.Query()
+	for k := range q {
+		kl := strings.ToLower(k)
+		if strings.HasPrefix(kl, "utm_") || kl == "ref" || kl == "fbclid" || kl == "gclid" {
+			q.Del(k)
+		}
 	}
-	return rawURL
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func isSafeHost(host string) bool {
