@@ -225,16 +225,16 @@ func OpenGlobalIndex() (*sql.DB, error) {
 	conn.Exec("ALTER TABLE search_index ADD COLUMN embedding BLOB;")
 	conn.Exec("ALTER TABLE search_index ADD COLUMN type TEXT DEFAULT 'page';")
 
+	// Migração silenciosa para deduplicação criptográfica e hibernação (DEVE RODAR ANTES DO SCHEMA)
+	conn.Exec("ALTER TABLE search_index ADD COLUMN content_hash TEXT;")
+	conn.Exec("ALTER TABLE search_index ADD COLUMN status TEXT DEFAULT 'active';")
+	conn.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_search_hash ON search_index(content_hash);")
+
 	_, err = conn.Exec(schema)
 	if err != nil {
 		initErr = fmt.Errorf("failed to migrate global index: %w", err)
 		return
 	}
-
-	// Migração silenciosa para deduplicação criptográfica e hibernação
-	conn.Exec("ALTER TABLE search_index ADD COLUMN content_hash TEXT;")
-	conn.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_search_hash ON search_index(content_hash);")
-	conn.Exec("ALTER TABLE search_index ADD COLUMN status TEXT DEFAULT 'active';")
 
 		globalDBPool = conn
 	})
