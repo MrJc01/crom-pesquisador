@@ -2,8 +2,8 @@ import type { SearchResponse, LinkDetail, LinkComment } from './types';
 
 const API_BASE = import.meta.env.DEV ? 'http://localhost:8098/api' : '/api';
 
-export async function search(query: string, page = 1): Promise<SearchResponse> {
-  const response = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}&page=${page}`);
+export async function search(query: string, page = 1, tab = 'all'): Promise<SearchResponse> {
+  const response = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}&page=${page}&tab=${tab}`);
   if (!response.ok) {
     throw new Error('Failed to fetch search results');
   }

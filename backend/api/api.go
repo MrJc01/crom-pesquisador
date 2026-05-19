@@ -156,15 +156,29 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	limit := 15
 	offset := (pageNum - 1) * limit
 	
-	// 1. Get Absolute Total Matches
+	tab := r.URL.Query().Get("tab")
+	if tab == "" {
+		tab = "all"
+	}
+	
+	targetNodeType := "page"
+	if tab == "images" { targetNodeType = "image" }
+	if tab == "videos" { targetNodeType = "video" }
+	if tab == "code" { targetNodeType = "code" }
+	if tab == "academic" { targetNodeType = "academic" }
+	if tab == "shopping" { targetNodeType = "shopping" }
+	if tab == "news" { targetNodeType = "page" } // News is extracted from pages with pub date
+
+	// 1. Get Absolute Total Matches ONLY for the current tab's content type
 	var absoluteTotal int
 	globalDB.QueryRow(`
 		SELECT COUNT(*) 
 		FROM search_index 
 		JOIN search_fts ON search_index.rowid = search_fts.rowid
 		WHERE search_fts MATCH ? 
+		  AND search_index.type = ?
 		  AND search_index.domain NOT IN (SELECT domain FROM banned_domains)
-	`, ftsQuery).Scan(&absoluteTotal)
+	`, ftsQuery, targetNodeType).Scan(&absoluteTotal)
 
 	// 2. Fetch results per type
 	results := make([]map[string]interface{}, 0)
@@ -175,7 +189,7 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	academic := make([]map[string]interface{}, 0)
 	shopping := make([]map[string]interface{}, 0)
 
-	typesToFetch := []string{"page", "image", "video", "code", "academic", "shopping"}
+	typesToFetch := []string{targetNodeType}
 	hasMore := false
 	
 	// Prepara a string limpa para o LIKE do Boost de Domínio

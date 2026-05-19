@@ -39,19 +39,19 @@ export function SearchPage() {
     if (!query) return;
     setPage(1);
     setLoading(true);
-    searchAPI(query, 1).then(res => {
+    searchAPI(query, 1, tab).then(res => {
       setData(res);
       setLoading(false);
       if (historyEnabled) addHistory(query, tab);
     });
-  }, [query]);
+  }, [query, tab]);
 
   // Load more (infinite scroll)
   const loadMore = useCallback(() => {
     if (!data?.hasMore || loadingMore || !query) return;
     setLoadingMore(true);
     const nextPage = page + 1;
-    searchAPI(query, nextPage).then(res => {
+    searchAPI(query, nextPage, tab).then(res => {
       setData(prev => prev ? {
         ...res,
         results: [...prev.results, ...res.results],
@@ -65,7 +65,7 @@ export function SearchPage() {
       setPage(nextPage);
       setLoadingMore(false);
     });
-  }, [data, loadingMore, query, page]);
+  }, [data, loadingMore, query, page, tab]);
 
   // Handle infinite scroll
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
