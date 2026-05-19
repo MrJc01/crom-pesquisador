@@ -18,6 +18,9 @@ func main() {
 
 	fmt.Println("💀 Iniciando o Ceifador (Data Reaper) de Hibernação...")
 
+	// Tenta criar a coluna caso o backend não tenha sido iniciado ainda
+	db.Exec("ALTER TABLE search_index ADD COLUMN status TEXT DEFAULT 'active'")
+
 	// 1. Hibernar Notícias Antigas (mais de 2 anos)
 	// Para páginas normais e imagens, idealmente usaríamos um tracking de cliques no futuro.
 	res, err := db.Exec(`
