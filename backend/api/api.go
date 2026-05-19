@@ -169,6 +169,12 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	if tab == "shopping" { targetNodeType = "shopping" }
 	if tab == "news" { targetNodeType = "page" } // News is extracted from pages with pub date
 
+	deepSearch := r.URL.Query().Get("deep") == "true"
+	statusFilter := " AND search_index.status = 'active' "
+	if deepSearch {
+		statusFilter = ""
+	}
+
 	// 1. Get Absolute Total Matches ONLY for the current tab's content type
 	var absoluteTotal int
 	globalDB.QueryRow(`
@@ -176,7 +182,7 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		FROM search_index 
 		JOIN search_fts ON search_index.rowid = search_fts.rowid
 		WHERE search_fts MATCH ? 
-		  AND search_index.type = ?
+		  AND search_index.type = ? ` + statusFilter + `
 		  AND search_index.domain NOT IN (SELECT domain FROM banned_domains)
 	`, ftsQuery, targetNodeType).Scan(&absoluteTotal)
 
@@ -201,7 +207,7 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 			FROM search_index 
 			JOIN search_fts ON search_index.rowid = search_fts.rowid
 			WHERE search_fts MATCH ? 
-			  AND search_index.type = ?
+			  AND search_index.type = ? ` + statusFilter + `
 			  AND search_index.domain NOT IN (SELECT domain FROM banned_domains)
 			ORDER BY 
 			  CASE 

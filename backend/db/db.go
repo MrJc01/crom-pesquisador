@@ -168,7 +168,8 @@ func OpenGlobalIndex() (*sql.DB, error) {
 		keywords TEXT,
 		published_date TEXT,
 		embedding BLOB,
-		content_hash TEXT
+		content_hash TEXT,
+		status TEXT DEFAULT 'active'
 	);
 
 	CREATE UNIQUE INDEX IF NOT EXISTS idx_search_hash ON search_index(content_hash);
@@ -230,9 +231,10 @@ func OpenGlobalIndex() (*sql.DB, error) {
 		return
 	}
 
-	// Migração silenciosa para deduplicação criptográfica
+	// Migração silenciosa para deduplicação criptográfica e hibernação
 	conn.Exec("ALTER TABLE search_index ADD COLUMN content_hash TEXT;")
 	conn.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_search_hash ON search_index(content_hash);")
+	conn.Exec("ALTER TABLE search_index ADD COLUMN status TEXT DEFAULT 'active';")
 
 		globalDBPool = conn
 	})
