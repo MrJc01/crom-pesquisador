@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Search, Image, Video, Newspaper, Code, MessageCircle, Settings, Loader2 } from 'lucide-react';
+import { Search, Image, Video, Newspaper, Code, MessageCircle, Settings, Loader2, BookOpen, ShoppingCart } from 'lucide-react';
 import { SearchBar } from '../components/SearchBar';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { ResultCard } from '../components/ResultCard';
@@ -16,6 +16,8 @@ const TABS = [
   { id: 'videos' as TabType, label: 'Vídeos', icon: Video },
   { id: 'news' as TabType, label: 'Notícias', icon: Newspaper },
   { id: 'code' as TabType, label: 'Código', icon: Code },
+  { id: 'academic' as TabType, label: 'Acadêmico', icon: BookOpen },
+  { id: 'shopping' as TabType, label: 'Shopping', icon: ShoppingCart },
 ];
 
 export function SearchPage() {
@@ -57,6 +59,8 @@ export function SearchPage() {
         videos: [...prev.videos, ...res.videos],
         news: [...prev.news, ...res.news],
         code: [...prev.code, ...res.code],
+        academic: [...(prev.academic || []), ...(res.academic || [])],
+        shopping: [...(prev.shopping || []), ...(res.shopping || [])],
       } : res);
       setPage(nextPage);
       setLoadingMore(false);
@@ -206,6 +210,45 @@ export function SearchPage() {
                           <div className="px-4 py-1.5 text-xs text-slate-500 font-mono border-b border-slate-100 dark:border-slate-800/30">{c.file}</div>
                           <pre className="p-4 text-xs font-mono text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-surface-900 overflow-x-auto leading-relaxed"><code>{c.snippet}</code></pre>
                         </article>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Tab: Acadêmico */}
+                  {tab === 'academic' && (
+                    <div className="flex flex-col gap-4">
+                      {data.academic?.map((a, i) => (
+                        <article key={a.id} className="p-4 rounded-xl border border-slate-100 dark:border-slate-800/40 hover:border-brand-300 dark:hover:border-brand-500/30 transition-all animate-fade-in bg-white dark:bg-surface-950" style={{ animationDelay: `${i * 80}ms` }}>
+                          <a href={a.url} target="_blank" rel="noopener noreferrer" className="block">
+                            <div className="flex items-center gap-2 mb-1">
+                              <BookOpen className="w-4 h-4 text-brand-500" />
+                              <span className="text-xs font-semibold text-slate-500">{a.site}</span>
+                              {a.year && <span className="text-[10px] text-slate-400">· {a.year}</span>}
+                            </div>
+                            <h3 className="text-base font-semibold text-brand-600 dark:text-brand-400 mb-2 hover:underline">{a.title}</h3>
+                            <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-3">{a.snippet}</p>
+                          </a>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Tab: Shopping */}
+                  {tab === 'shopping' && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {data.shopping?.map((s, i) => (
+                        <a key={s.id} href={s.url} target="_blank" rel="noopener noreferrer" className="group flex flex-col p-3 rounded-xl border border-slate-100 dark:border-slate-800/40 hover:border-brand-300 dark:hover:border-brand-500/30 hover:shadow-md transition-all animate-fade-in bg-white dark:bg-surface-950" style={{ animationDelay: `${i * 80}ms` }}>
+                          <div className="aspect-square bg-slate-50 dark:bg-surface-900 rounded-lg flex items-center justify-center mb-3">
+                            <ShoppingCart className="w-8 h-8 text-slate-300 dark:text-slate-700" />
+                          </div>
+                          <div className="flex flex-col flex-1">
+                            <h3 className="text-sm font-medium text-slate-800 dark:text-slate-200 line-clamp-2 mb-1 group-hover:text-brand-500 transition-colors">{s.title}</h3>
+                            <div className="mt-auto">
+                              <span className="text-lg font-bold text-slate-900 dark:text-white">{s.price || "Preço indisponível"}</span>
+                              <p className="text-[10px] text-slate-500 mt-1">{s.site}</p>
+                            </div>
+                          </div>
+                        </a>
                       ))}
                     </div>
                   )}

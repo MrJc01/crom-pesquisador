@@ -116,7 +116,9 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		jsonResponse(w, http.StatusOK, map[string]interface{}{
 			"query": "", "total": 0, "time": 0, "results": []interface{}{}, 
 			"images": []interface{}{}, "videos": []interface{}{}, 
-			"news": []interface{}{}, "code": []interface{}{}, "related": []interface{}{},
+			"news": []interface{}{}, "code": []interface{}{},
+			"academic": []interface{}{}, "shopping": []interface{}{},
+			"related": []interface{}{},
 			"hasMore": false, "page": 1,
 		})
 		return
@@ -170,8 +172,10 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	images := make([]map[string]interface{}, 0)
 	videos := make([]map[string]interface{}, 0)
 	code := make([]map[string]interface{}, 0)
+	academic := make([]map[string]interface{}, 0)
+	shopping := make([]map[string]interface{}, 0)
 
-	typesToFetch := []string{"page", "image", "video", "code"}
+	typesToFetch := []string{"page", "image", "video", "code", "academic", "shopping"}
 	hasMore := false
 
 	for _, nodeType := range typesToFetch {
@@ -213,6 +217,14 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 				code = append(code, map[string]interface{}{
 					"id": apiID, "title": title, "language": "txt", "content": description, "site": domain,
 				})
+			} else if nodeType == "academic" {
+				academic = append(academic, map[string]interface{}{
+					"id": apiID, "title": title, "url": url, "snippet": description, "site": domain, "year": pubDate.String,
+				})
+			} else if nodeType == "shopping" {
+				shopping = append(shopping, map[string]interface{}{
+					"id": apiID, "title": title, "url": url, "price": description, "site": domain,
+				})
 			} else {
 				item := map[string]interface{}{
 					"id": apiID, "url": url, "title": title, "snippet": description, "site": domain, "breadcrumb": domain + " › " + title,
@@ -241,6 +253,8 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		"videos":  videos,
 		"news":    newsResults,
 		"code":    code,
+		"academic": academic,
+		"shopping": shopping,
 		"related": []interface{}{},
 		"hasMore": hasMore,
 		"page":    pageNum,

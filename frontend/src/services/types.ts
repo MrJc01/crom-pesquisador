@@ -49,6 +49,24 @@ export interface CodeResult {
   url?: string;
 }
 
+export interface AcademicResult {
+  id: string;
+  title: string;
+  url: string;
+  snippet: string;
+  site: string;
+  author?: string;
+  year?: string;
+}
+
+export interface ShoppingResult {
+  id: string;
+  title: string;
+  url: string;
+  price: string;
+  site: string;
+}
+
 export interface KnowledgePanel {
   title: string;
   subtitle: string;
@@ -66,6 +84,8 @@ export interface SearchResponse {
   videos: VideoResult[];
   news: NewsResult[];
   code: CodeResult[];
+  academic: AcademicResult[];
+  shopping: ShoppingResult[];
   knowledgePanel?: KnowledgePanel;
   related: string[];
   hasMore: boolean;
@@ -86,7 +106,7 @@ export interface HistoryEntry {
   timestamp: number;
 }
 
-export type TabType = 'all' | 'images' | 'videos' | 'news' | 'code';
+export type TabType = 'all' | 'images' | 'videos' | 'news' | 'code' | 'academic' | 'shopping';
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 export interface Settings {
@@ -150,13 +170,13 @@ export interface LinkRelated {
   id: string;
   title: string;
   url: string;
-  type: 'page' | 'image' | 'video' | 'news' | 'code';
+  type: 'page' | 'image' | 'video' | 'news' | 'code' | 'academic' | 'shopping';
 }
 
 export interface LinkDetail {
   id: string;
   url: string;
-  type: 'page' | 'image' | 'video' | 'news' | 'code';
+  type: 'page' | 'image' | 'video' | 'news' | 'code' | 'academic' | 'shopping';
   meta: LinkMeta;
   technical: LinkTechnical;
   analytics: LinkAnalytics;

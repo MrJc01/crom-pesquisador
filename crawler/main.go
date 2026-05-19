@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -47,6 +48,20 @@ type RssItem struct {
 	Link        string `xml:"link"`
 	Description string `xml:"description"`
 	PubDate     string `xml:"pubDate"`
+}
+
+type Sitemap struct {
+	XMLName xml.Name     `xml:"urlset"`
+	URLs    []SitemapURL `xml:"url"`
+}
+
+type SitemapIndex struct {
+	XMLName  xml.Name     `xml:"sitemapindex"`
+	Sitemaps []SitemapURL `xml:"sitemap"`
+}
+
+type SitemapURL struct {
+	Loc string `xml:"loc"`
 }
 
 func main() {
@@ -108,6 +123,7 @@ func processSite(startURL string, config *TargetConfig) {
 	// Fetch robots.txt
 	robotsURL := fmt.Sprintf("%s://%s/robots.txt", baseURLObj.Scheme, baseURLObj.Host)
 	var robotsData *robotstxt.Group
+	var robotsObj *robotstxt.RobotsData
 	
 	req, _ := http.NewRequest("GET", robotsURL, nil)
 	req.Header.Set("User-Agent", UserAgent)
@@ -115,9 +131,9 @@ func processSite(startURL string, config *TargetConfig) {
 	respRobots, err := client.Do(req)
 	
 	if err == nil && respRobots.StatusCode == 200 {
-		robots, err := robotstxt.FromResponse(respRobots)
+		robotsObj, err = robotstxt.FromResponse(respRobots)
 		if err == nil {
-			robotsData = robots.FindGroup(UserAgent)
+			robotsData = robotsObj.FindGroup(UserAgent)
 		}
 	}
 
@@ -139,6 +155,24 @@ func processSite(startURL string, config *TargetConfig) {
 	queue := []string{startURL}
 	visited := make(map[string]bool)
 	count := 0
+
+	// Sitemap Injection 🗺️
+	fmt.Printf("[🗺️ SITEMAP] Buscando Sitemaps para %s...\n", baseDomain)
+	var sitemapURLs []string
+	if robotsObj != nil && len(robotsObj.Sitemaps) > 0 {
+		for sitemapURL := range robotsObj.Sitemaps {
+			sitemapURLs = append(sitemapURLs, fetchSitemapURLs(sitemapURL)...)
+		}
+	} else {
+		sitemapURLs = fetchSitemapURLs(fmt.Sprintf("%s://%s/sitemap.xml", baseURLObj.Scheme, baseURLObj.Host))
+	}
+
+	if len(sitemapURLs) > 0 {
+		fmt.Printf("[🗺️ SITEMAP] %d URLs descobertas via Sitemap!\n", len(sitemapURLs))
+		for _, su := range sitemapURLs {
+			queue = append(queue, su)
+		}
+	}
 
 	for len(queue) > 0 && count < config.LimitPerSite {
 		currentURL := queue[0]
@@ -501,6 +535,49 @@ func processPage(urlStr string, domain string, baseURLObj *url.URL, config *Targ
 	})
 
 	return node, links
+}
+
+func fetchSitemapURLs(sitemapURL string) []string {
+	var urls []string
+	req, _ := http.NewRequest("GET", sitemapURL, nil)
+	req.Header.Set("User-Agent", UserAgent)
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		return urls
+	}
+	defer resp.Body.Close()
+
+	bytesBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return urls
+	}
+
+	// Tenta como SitemapIndex
+	var sIndex SitemapIndex
+	if err := xml.Unmarshal(bytesBody, &sIndex); err == nil && len(sIndex.Sitemaps) > 0 {
+		// Não fazemos recursão profunda para evitar prender a thread em sites infinitos. Lemos o primeiro nível.
+		for _, s := range sIndex.Sitemaps {
+			subUrls := fetchSitemapURLs(s.Loc)
+			urls = append(urls, subUrls...)
+			// Limitar para não explodir a memória
+			if len(urls) > 5000 {
+				break
+			}
+		}
+		return urls
+	}
+
+	// Tenta como Sitemap Padrão
+	var sMap Sitemap
+	if err := xml.Unmarshal(bytesBody, &sMap); err == nil {
+		for _, u := range sMap.URLs {
+			if strings.HasPrefix(u.Loc, "http") {
+				urls = append(urls, u.Loc)
+			}
+		}
+	}
+	return urls
 }
 
 func min(a, b int) int {
