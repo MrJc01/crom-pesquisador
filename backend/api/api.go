@@ -244,6 +244,11 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var kp *KnowledgePanel
+	if pageNum == 1 {
+		kp = getKnowledgePanel(query)
+	}
+
 	response := map[string]interface{}{
 		"query":   query,
 		"total":   absoluteTotal,
@@ -255,6 +260,7 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		"code":    code,
 		"academic": academic,
 		"shopping": shopping,
+		"knowledgePanel": kp,
 		"related": []interface{}{},
 		"hasMore": hasMore,
 		"page":    pageNum,
@@ -556,4 +562,69 @@ func ExtractDomain(rawURL string) string {
 	parts := strings.Split(rawURL, "/")
 	domain := parts[0]
 	return strings.TrimPrefix(domain, "www.")
+}
+
+// ----------------------------------------------------------------------------
+// Knowledge Panel (Snippets)
+// ----------------------------------------------------------------------------
+
+type KnowledgePanel struct {
+	Title       string `json:"title"`
+	Subtitle    string `json:"subtitle"`
+	Description string `json:"description"`
+	Image       string `json:"image,omitempty"`
+	Facts       []Fact `json:"facts"`
+}
+
+type Fact struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
+	Link  string `json:"link,omitempty"`
+}
+
+func getKnowledgePanel(query string) *KnowledgePanel {
+	q := strings.ToLower(strings.TrimSpace(query))
+	
+	if q == "dolar" || q == "dólar" || q == "usd" || q == "cotacao dolar" || q == "cotação dólar" {
+		return fetchAwesomeAPI("USD-BRL", "Dólar Comercial", "Moeda dos Estados Unidos", "Acompanhe a cotação em tempo real da economia global.")
+	}
+	if q == "bitcoin" || q == "btc" || q == "cotacao bitcoin" {
+		return fetchAwesomeAPI("BTC-BRL", "Bitcoin (BTC)", "Criptomoeda Descentralizada", "Ouro digital e reserva de valor soberana.")
+	}
+	
+	return nil
+}
+
+func fetchAwesomeAPI(pair, title, subtitle, desc string) *KnowledgePanel {
+	resp, err := http.Get("https://economia.awesomeapi.com.br/last/" + pair)
+	if err != nil || resp.StatusCode != 200 {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	var data map[string]map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil
+	}
+
+	key := strings.Replace(pair, "-", "", 1)
+	if info, ok := data[key]; ok {
+		high := info["high"].(string)
+		low := info["low"].(string)
+		bid := info["bid"].(string)
+		pct := info["pctChange"].(string)
+
+		return &KnowledgePanel{
+			Title:       title,
+			Subtitle:    subtitle,
+			Description: desc,
+			Facts: []Fact{
+				{Label: "Cotação Atual", Value: "R$ " + bid},
+				{Label: "Variação (24h)", Value: pct + "%"},
+				{Label: "Máxima (24h)", Value: "R$ " + high},
+				{Label: "Mínima (24h)", Value: "R$ " + low},
+			},
+		}
+	}
+	return nil
 }

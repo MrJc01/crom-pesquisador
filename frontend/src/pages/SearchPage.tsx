@@ -127,6 +127,38 @@ export function SearchPage() {
                   {/* Tab: Todos */}
                   {tab === 'all' && (
                     <div className="flex flex-col gap-6">
+                      {/* Knowledge Panel */}
+                      {data.knowledgePanel && (
+                        <div className="w-full bg-slate-50 dark:bg-surface-850 rounded-2xl border border-slate-200 dark:border-slate-800/60 p-5 mb-2 animate-fade-in shadow-sm">
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <h2 className="text-2xl font-bold text-slate-900 dark:text-white leading-tight">{data.knowledgePanel.title}</h2>
+                              <p className="text-sm font-medium text-brand-600 dark:text-brand-400">{data.knowledgePanel.subtitle}</p>
+                            </div>
+                            {data.knowledgePanel.image && (
+                              <div className="w-16 h-16 rounded-xl overflow-hidden shadow-sm shrink-0">
+                                <img src={data.knowledgePanel.image} alt={data.knowledgePanel.title} className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                          </div>
+                          
+                          <p className="text-sm text-slate-700 dark:text-slate-300 mb-6 leading-relaxed">
+                            {data.knowledgePanel.description}
+                          </p>
+                          
+                          {data.knowledgePanel.facts && data.knowledgePanel.facts.length > 0 && (
+                            <div className="grid grid-cols-2 gap-3">
+                              {data.knowledgePanel.facts.map((fact, idx) => (
+                                <div key={idx} className="bg-white dark:bg-surface-950/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800/40">
+                                  <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">{fact.label}</p>
+                                  <p className="text-base font-bold text-slate-900 dark:text-white">{fact.value}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {data.results.map((r, i) => (
                         <div key={r.id} className="w-full animate-fade-in">
                           <ResultCard result={r} index={i} openInNewTab={openInNewTab} />

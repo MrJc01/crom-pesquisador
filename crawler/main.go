@@ -83,6 +83,9 @@ func main() {
 		log.Fatalf("Failed to parse config file: %v", err)
 	}
 
+	// Inicializa o Motor de Proxies Rotativos
+	InitProxyPool()
+
 	for {
 		fmt.Printf("🚀 Lançando Batch de Crawlers para o Nicho: %s (%d alvos base)\n", target.Name, len(target.URLs))
 
@@ -127,7 +130,7 @@ func processSite(startURL string, config *TargetConfig) {
 	
 	req, _ := http.NewRequest("GET", robotsURL, nil)
 	req.Header.Set("User-Agent", UserAgent)
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := GetHttpClient(10 * time.Second)
 	respRobots, err := client.Do(req)
 	
 	if err == nil && respRobots.StatusCode == 200 {
@@ -201,7 +204,8 @@ func processSite(startURL string, config *TargetConfig) {
 		}
 
 		visited[cleanURL] = true
-		fmt.Printf("[🤖 %s] Crawling %d/%d: %s\n", baseDomain, count+1, config.LimitPerSite, cleanURL)
+		proxyIP := GetRandomProxyLog()
+		fmt.Printf("[🤖 %s | Proxy: %s] Crawling %d/%d: %s\n", baseDomain, proxyIP, count+1, config.LimitPerSite, cleanURL)
 		
 		node, links := processPage(cleanURL, baseDomain, baseURLObj, config, siteDB)
 		if node != nil {
@@ -230,7 +234,7 @@ func processRSS(rssURL string, domain string, config *TargetConfig, siteDB *db.D
 	
 	req, _ := http.NewRequest("GET", rssURL, nil)
 	req.Header.Set("User-Agent", UserAgent)
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := GetHttpClient(15 * time.Second)
 	resp, err := client.Do(req)
 	
 	if err != nil || resp.StatusCode != 200 {
@@ -320,7 +324,7 @@ func processPage(urlStr string, domain string, baseURLObj *url.URL, config *Targ
 	
 	req, _ := http.NewRequest("GET", urlStr, nil)
 	req.Header.Set("User-Agent", UserAgent)
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := GetHttpClient(15 * time.Second)
 	resp, err := client.Do(req)
 	
 	if err != nil {
@@ -419,7 +423,11 @@ func processPage(urlStr string, domain string, baseURLObj *url.URL, config *Targ
 	})
 
 	// Process Images (Type: image)
+	imgCount := 0
 	doc.Find("img").Each(func(i int, s *goquery.Selection) {
+		if imgCount >= 20 {
+			return // Limita para não saturar o banco com icones genéricos
+		}
 		src, exists := s.Attr("src")
 		if !exists || src == "" {
 			return
@@ -455,10 +463,15 @@ func processPage(urlStr string, domain string, baseURLObj *url.URL, config *Targ
 		
 		// Save Image Node
 		siteDB.SaveNode(imgNode)
+		imgCount++
 	})
 
 	// Process Videos (Type: video)
+	vidCount := 0
 	doc.Find("video, iframe").Each(func(i int, s *goquery.Selection) {
+		if vidCount >= 5 {
+			return
+		}
 		src, exists := s.Attr("src")
 		if !exists {
 			return
@@ -494,6 +507,7 @@ func processPage(urlStr string, domain string, baseURLObj *url.URL, config *Targ
 		}
 		// Save Video Node
 		siteDB.SaveNode(vidNode)
+		vidCount++
 	})
 
 	// Process Code (Type: code)
@@ -541,7 +555,7 @@ func fetchSitemapURLs(sitemapURL string) []string {
 	var urls []string
 	req, _ := http.NewRequest("GET", sitemapURL, nil)
 	req.Header.Set("User-Agent", UserAgent)
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := GetHttpClient(15 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
 		return urls
