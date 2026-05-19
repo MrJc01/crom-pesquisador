@@ -598,33 +598,51 @@ func getKnowledgePanel(query string) *KnowledgePanel {
 func fetchAwesomeAPI(pair, title, subtitle, desc string) *KnowledgePanel {
 	resp, err := http.Get("https://economia.awesomeapi.com.br/last/" + pair)
 	if err != nil || resp.StatusCode != 200 {
-		return nil
+		fmt.Printf("[ORÁCULO ERRO] Falha ao acessar AwesomeAPI para %s: %v\n", pair, err)
+		return createFallbackPanel(title, subtitle, desc)
 	}
 	defer resp.Body.Close()
 
-	var data map[string]map[string]interface{}
+	var data map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil
+		fmt.Printf("[ORÁCULO ERRO] Falha no Parse do JSON para %s: %v\n", pair, err)
+		return createFallbackPanel(title, subtitle, desc)
 	}
 
 	key := strings.Replace(pair, "-", "", 1)
-	if info, ok := data[key]; ok {
-		high := info["high"].(string)
-		low := info["low"].(string)
-		bid := info["bid"].(string)
-		pct := info["pctChange"].(string)
+	if infoRaw, ok := data[key]; ok {
+		// As vezes a API muda a estrutura ou da erro interno, vamos usar type assertion seguro
+		if info, ok := infoRaw.(map[string]interface{}); ok {
+			high, _ := info["high"].(string)
+			low, _ := info["low"].(string)
+			bid, _ := info["bid"].(string)
+			pct, _ := info["pctChange"].(string)
 
-		return &KnowledgePanel{
-			Title:       title,
-			Subtitle:    subtitle,
-			Description: desc,
-			Facts: []Fact{
-				{Label: "Cotação Atual", Value: "R$ " + bid},
-				{Label: "Variação (24h)", Value: pct + "%"},
-				{Label: "Máxima (24h)", Value: "R$ " + high},
-				{Label: "Mínima (24h)", Value: "R$ " + low},
-			},
+			return &KnowledgePanel{
+				Title:       title,
+				Subtitle:    subtitle,
+				Description: desc,
+				Facts: []Fact{
+					{Label: "Cotação Atual", Value: "R$ " + bid},
+					{Label: "Variação (24h)", Value: pct + "%"},
+					{Label: "Máxima (24h)", Value: "R$ " + high},
+					{Label: "Mínima (24h)", Value: "R$ " + low},
+				},
+			}
 		}
 	}
-	return nil
+	
+	fmt.Printf("[ORÁCULO ERRO] Chave %s não encontrada na resposta.\n", key)
+	return createFallbackPanel(title, subtitle, desc)
+}
+
+func createFallbackPanel(title, subtitle, desc string) *KnowledgePanel {
+	return &KnowledgePanel{
+		Title:       title,
+		Subtitle:    subtitle + " (Modo Offline/Fallback)",
+		Description: desc + "\n\n(A API de cotações em tempo real está indisponível no momento.)",
+		Facts: []Fact{
+			{Label: "Status", Value: "Offline"},
+		},
+	}
 }
