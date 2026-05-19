@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Search, Image, Video, Newspaper, Code, Trash2, ArrowLeft } from 'lucide-react';
+import { Clock, Search, Image, Video, Newspaper, Code, Trash2, ArrowLeft, BookOpen, ShoppingCart } from 'lucide-react';
 import { useHistoryStore } from '../stores/historyStore';
 import type { TabType } from '../services/types';
 
-const TAB_ICONS: Record<TabType, typeof Search> = { all: Search, images: Image, videos: Video, news: Newspaper, code: Code };
-const TAB_LABELS: Record<TabType, string> = { all: 'Todos', images: 'Imagens', videos: 'Vídeos', news: 'Notícias', code: 'Código' };
+const TAB_ICONS: Record<TabType, typeof Search> = { all: Search, images: Image, videos: Video, news: Newspaper, code: Code, academic: BookOpen, shopping: ShoppingCart };
+const TAB_LABELS: Record<TabType, string> = { all: 'Todos', images: 'Imagens', videos: 'Vídeos', news: 'Notícias', code: 'Código', academic: 'Acadêmico', shopping: 'Shopping' };
 
 export function HistoryPage() {
   const { entries, removeEntry, clearAll } = useHistoryStore();

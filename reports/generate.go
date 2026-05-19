@@ -37,7 +37,8 @@ func main() {
 	writeDomainStats(db, f)
 	writeRecentEntries(db, f)
 
-	fmt.Printf("✅ Relatório gerado com sucesso: %s\n", filepath.Join(filepath.Dir(os.Args[0]), reportFile))
+	absPath, _ := filepath.Abs(reportFile)
+	fmt.Printf("✅ Relatório gerado com sucesso: %s\n", absPath)
 }
 
 func writeHeader(f *os.File) {
