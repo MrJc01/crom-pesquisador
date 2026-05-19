@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"encoding/xml"
 	"flag"
@@ -65,15 +66,23 @@ type SitemapURL struct {
 }
 
 func main() {
-	configPath := flag.String("config", "", "Path to the target JSON configuration file")
+	configPath := flag.String("config", "", "Path to the target JSON configuration file (optional)")
 	flag.Parse()
 
-	if *configPath == "" {
-		log.Fatal("Please provide a --config to JSON target (e.g. --config targets/crom.json)")
-	}
+	// Inicializa o Motor de Proxies Rotativos
+	InitProxyPool()
 
+	if *configPath != "" {
+		runBatchMode(*configPath)
+	} else {
+		fmt.Println("🤖 Mente Mestra Autônoma: ATIVADA. O Crawler puxará missões do SQLite.")
+		runQueueMode()
+	}
+}
+
+func runBatchMode(configPath string) {
 	// 1. Load JSON Config
-	fileBytes, err := os.ReadFile(*configPath)
+	fileBytes, err := os.ReadFile(configPath)
 	if err != nil {
 		log.Fatalf("Failed to read config file: %v", err)
 	}
@@ -82,9 +91,6 @@ func main() {
 	if err := json.Unmarshal(fileBytes, &target); err != nil {
 		log.Fatalf("Failed to parse config file: %v", err)
 	}
-
-	// Inicializa o Motor de Proxies Rotativos
-	InitProxyPool()
 
 	for {
 		fmt.Printf("🚀 Lançando Batch de Crawlers para o Nicho: %s (%d alvos base)\n", target.Name, len(target.URLs))
@@ -106,6 +112,53 @@ func main() {
 		
 		fmt.Println("💤 Crawler entrando em repouso por 15 minutos antes da próxima varredura...")
 		time.Sleep(15 * time.Minute)
+	}
+}
+
+func runQueueMode() {
+	globalDB, err := db.OpenGlobalIndex()
+	if err != nil {
+		log.Fatalf("Failed to open global DB: %v", err)
+	}
+	
+	// Create a dummy config for processing
+	dummyConfig := &TargetConfig{
+		Name:         "Autonomous",
+		LimitPerSite: 50,
+		DelayMs:      1000,
+		Language:     "pt",
+		Category:     "autonomous",
+	}
+
+	for {
+		// Puxa a próxima URL pendente
+		var targetUrl string
+		err := globalDB.QueryRow(`
+			SELECT url FROM crawler_queue 
+			WHERE status = 'pending' 
+			ORDER BY discovered_at ASC LIMIT 1
+		`).Scan(&targetUrl)
+
+		if err != nil {
+			fmt.Println("💤 Fila de rastreio vazia. Nenhuma URL pendente. Dormindo por 1 minuto...")
+			time.Sleep(1 * time.Minute)
+			continue
+		}
+
+		fmt.Printf("🕷️ [FILA] Iniciando extração autônoma de: %s\n", targetUrl)
+		
+		// Marca como processando
+		globalDB.Exec("UPDATE crawler_queue SET status = 'processing', last_attempt = ? WHERE url = ?", time.Now().Format(time.RFC3339), targetUrl)
+
+		// Roda o Crawler
+		processSite(targetUrl, dummyConfig)
+
+		// Marca como concluido (processSite já pode ter lidado com erros, mas globalmente assumimos que terminou)
+		globalDB.Exec("UPDATE crawler_queue SET status = 'completed' WHERE url = ?", targetUrl)
+		
+		fmt.Printf("✅ [FILA] Extração concluída para: %s\n", targetUrl)
+		// Espera 2 segs entre cada pull da fila pra não explodir
+		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -207,7 +260,9 @@ func processSite(startURL string, config *TargetConfig) {
 		proxyIP := GetRandomProxyLog()
 		fmt.Printf("[🤖 %s | Proxy: %s] Crawling %d/%d: %s\n", baseDomain, proxyIP, count+1, config.LimitPerSite, cleanURL)
 		
-		node, links := processPage(cleanURL, baseDomain, baseURLObj, config, siteDB)
+		// Open global DB again just to pass down for external links (processPage will handle it)
+		globalDB, _ := db.OpenGlobalIndex()
+		node, links := processPage(cleanURL, baseDomain, baseURLObj, config, siteDB, globalDB)
 		if node != nil {
 			err = siteDB.SaveNode(node)
 			if err != nil {
@@ -319,7 +374,7 @@ func processRSS(rssURL string, domain string, config *TargetConfig, siteDB *db.D
 	fmt.Printf("✅ [📰 RSS] Processou %d notícias urgentes de %s\n", count, domain)
 }
 
-func processPage(urlStr string, domain string, baseURLObj *url.URL, config *TargetConfig, siteDB *db.DB) (*db.LinkDetail, []string) {
+func processPage(urlStr string, domain string, baseURLObj *url.URL, config *TargetConfig, siteDB *db.DB, globalDB *sql.DB) (*db.LinkDetail, []string) {
 	start := time.Now()
 	
 	req, _ := http.NewRequest("GET", urlStr, nil)
@@ -418,6 +473,11 @@ func processPage(urlStr string, domain string, baseURLObj *url.URL, config *Targ
 		if absoluteURL.Scheme == "http" || absoluteURL.Scheme == "https" {
 			if extractDomain(absStr) == domain {
 				links = append(links, absStr)
+			} else {
+				// É um link externo! Vamos injetar na fila autônoma global (ignorando erros se já existir)
+				if globalDB != nil {
+					globalDB.Exec("INSERT OR IGNORE INTO crawler_queue (url, status, discovered_at) VALUES (?, 'pending', ?)", absStr, time.Now().Format(time.RFC3339))
+				}
 			}
 		}
 	})

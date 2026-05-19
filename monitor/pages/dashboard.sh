@@ -63,6 +63,20 @@ while true; do
         echo -e "  Nenhuma conexão remota ativa agora."
     fi
 
+    # Fila Autônoma
+    echo -e "\n${C_BOLD}[FILA AUTÔNOMA (Mente Mestra)]${C_RESET}"
+    if [ -f "$PROJECT_ROOT/data/index/global_index.db" ]; then
+        queue_pending=$(sqlite3 "$PROJECT_ROOT/data/index/global_index.db" "SELECT COUNT(*) FROM crawler_queue WHERE status = 'pending';" 2>/dev/null || echo "0")
+        queue_processing=$(sqlite3 "$PROJECT_ROOT/data/index/global_index.db" "SELECT COUNT(*) FROM crawler_queue WHERE status = 'processing';" 2>/dev/null || echo "0")
+        queue_completed=$(sqlite3 "$PROJECT_ROOT/data/index/global_index.db" "SELECT COUNT(*) FROM crawler_queue WHERE status = 'completed';" 2>/dev/null || echo "0")
+        
+        echo -e "  Pendentes   : ${C_YELLOW}${queue_pending}${C_RESET} URLs aguardando"
+        echo -e "  Processando : ${C_BLUE}${queue_processing}${C_RESET} URLs ativas"
+        echo -e "  Concluídas  : ${C_GREEN}${queue_completed}${C_RESET} URLs finalizadas"
+    else
+        echo -e "  Banco Global não inicializado."
+    fi
+
     # Bancos de Dados
     echo -e "\n${C_BOLD}[TOP 5 SITES INDEXADOS (Arquivos DB)]${C_RESET}"
     ls_count=$(ls -1 "$PROJECT_ROOT/data/sites"/*.db 2>/dev/null | wc -l)

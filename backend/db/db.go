@@ -207,6 +207,14 @@ func OpenGlobalIndex() (*sql.DB, error) {
 		reason TEXT NOT NULL,
 		reported_at TEXT
 	);
+
+	-- Fila de Rastreio Autônomo
+	CREATE TABLE IF NOT EXISTS crawler_queue (
+		url TEXT PRIMARY KEY,
+		status TEXT DEFAULT 'pending',
+		discovered_at TEXT,
+		last_attempt TEXT
+	);
 	`
 	// Attempt to add published_date and embedding if table already exists (safe migrations)
 	conn.Exec("ALTER TABLE search_index ADD COLUMN published_date TEXT;")

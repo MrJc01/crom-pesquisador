@@ -266,6 +266,21 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		"page":    pageNum,
 	}
 
+	// ---------------------------------------------------------
+	// ON-DEMAND SEED INJECTION (Motor Autônomo)
+	// Adiciona a pesquisa na fila do crawler para descobertas
+	// ---------------------------------------------------------
+	go func(q string) {
+		if globalDB != nil && len(q) > 2 {
+			wikiSearch := fmt.Sprintf("https://pt.wikipedia.org/w/index.php?search=%s", url.QueryEscape(q))
+			ddgSearch := fmt.Sprintf("https://html.duckduckgo.com/html/?q=%s", url.QueryEscape(q))
+			
+			now := time.Now().Format(time.RFC3339)
+			globalDB.Exec("INSERT OR IGNORE INTO crawler_queue (url, status, discovered_at) VALUES (?, 'pending', ?)", wikiSearch, now)
+			globalDB.Exec("INSERT OR IGNORE INTO crawler_queue (url, status, discovered_at) VALUES (?, 'pending', ?)", ddgSearch, now)
+		}
+	}(query)
+
 	// Save to cache (5 minutes TTL)
 	searchCache.Store(cacheKey, cacheItem{
 		data:      response,
