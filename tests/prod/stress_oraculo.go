@@ -62,10 +62,10 @@ func main() {
 					var data map[string]interface{}
 					if err := json.NewDecoder(resp.Body).Decode(&data); err == nil {
 						if kp, ok := data["knowledgePanel"].(map[string]interface{}); ok {
-							if facts, ok2 := kp["Facts"].([]interface{}); ok2 && len(facts) > 0 {
+							if facts, ok2 := kp["facts"].([]interface{}); ok2 && len(facts) > 0 {
 								// Check first fact for "Offline" word
 								factMap := facts[0].(map[string]interface{})
-								if factMap["Label"] == "Status" && factMap["Value"] == "Offline" {
+								if factMap["label"] == "Status" && factMap["value"] == "Offline" {
 									atomic.AddInt64(&fallbackCount, 1)
 								} else {
 									atomic.AddInt64(&successCount, 1)
