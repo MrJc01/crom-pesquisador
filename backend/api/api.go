@@ -177,6 +177,9 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 
 	typesToFetch := []string{"page", "image", "video", "code", "academic", "shopping"}
 	hasMore := false
+	
+	// Prepara a string limpa para o LIKE do Boost de Domínio
+	cleanQuery := strings.TrimSpace(query)
 
 	for _, nodeType := range typesToFetch {
 		rows, err := globalDB.Query(`
@@ -186,9 +189,14 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 			WHERE search_fts MATCH ? 
 			  AND search_index.type = ?
 			  AND search_index.domain NOT IN (SELECT domain FROM banned_domains)
-			ORDER BY search_fts.rank ASC
+			ORDER BY 
+			  CASE 
+			    WHEN search_index.domain LIKE '%' || ? || '%' THEN search_fts.rank - 10000 
+			    ELSE search_fts.rank 
+			  END ASC,
+			  search_fts.rank ASC
 			LIMIT ? OFFSET ?
-		`, ftsQuery, nodeType, limit, offset)
+		`, ftsQuery, nodeType, cleanQuery, limit, offset)
 		
 		if err != nil {
 			continue
